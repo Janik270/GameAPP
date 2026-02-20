@@ -1,65 +1,83 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { LogIn, Gamepad2 } from "lucide-react";
+import Link from "next/link";
+import { motion } from "framer-motion";
 
 export default function Home() {
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const router = useRouter();
+
+  const handleJoin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code && name) {
+      // Logic to join lobby via socket will go here or in a separate context
+      router.push(`/game/${code.toUpperCase()}?name=${encodeURIComponent(name)}`);
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="flex min-h-screen flex-col items-center justify-center p-6 relative overflow-hidden">
+      <Link
+        href="/admin/login"
+        className="absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-white/70 hover:text-white font-medium"
+      >
+        <LogIn size={20} />
+        <span>Admin Login</span>
+      </Link>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md kahoot-card"
+      >
+        <div className="flex justify-center mb-6">
+          <div className="p-4 rounded-2xl bg-white/10 shadow-inner">
+            <Gamepad2 size={48} className="text-white" />
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        <h1 className="kahoot-title">Game Box</h1>
+
+        <form onSubmit={handleJoin} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-white/50 uppercase ml-1">Spiel-PIN</label>
+            <input
+              type="text"
+              placeholder="000000"
+              className="kahoot-input text-center text-3xl tracking-widest font-black uppercase"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              maxLength={6}
+              required
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-white/50 uppercase ml-1">Spitzname</label>
+            <input
+              type="text"
+              placeholder="Dein Name"
+              className="kahoot-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          <button type="submit" className="w-full kahoot-button text-xl uppercase tracking-wider">
+            Spiel beitreten
+          </button>
+        </form>
+      </motion.div>
+
+      <div className="mt-12 text-white/30 text-sm font-medium">
+        Mit ❤️ gemacht
+      </div>
+    </main >
   );
 }
