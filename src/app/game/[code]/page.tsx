@@ -116,12 +116,12 @@ export default function GamePage() {
                     <div className="flex justify-center mb-6">
                         <Loader2 size={48} className="text-indigo-400 animate-spin" />
                     </div>
-                    <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tight">Joined Lobby</h2>
-                    <p className="text-white/50 mb-8 font-medium">Waiting for host to start the game...</p>
+                    <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tight">Lobby beigetreten</h2>
+                    <p className="text-white/50 mb-8 font-medium">Warte auf den Host, um das Spiel zu starten...</p>
 
                     <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center gap-2">
                         <Users size={20} className="text-indigo-400" />
-                        <span className="text-white font-bold">{players.length} Players connected</span>
+                        <span className="text-white font-bold">{players.length} Spieler verbunden</span>
                     </div>
                 </motion.div>
             </main>
@@ -132,13 +132,22 @@ export default function GamePage() {
         return (
             <main className="flex min-h-screen flex-col items-center justify-center p-6">
                 <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="kahoot-card w-full max-w-2xl bg-indigo-900/40 border-indigo-400/30"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="w-full max-w-4xl kahoot-card p-12 relative overflow-hidden"
                 >
+                    <div className="absolute top-0 left-0 w-full h-2 bg-indigo-500" />
+
                     <div className="mb-8 text-center">
+                        <motion.h1
+                            initial={{ y: -20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            className="text-5xl font-[1000] uppercase tracking-tighter mb-8 text-transparent bg-clip-text bg-gradient-to-b from-white to-white/20 italic"
+                        >
+                            Wer ist der Imposter?
+                        </motion.h1>
                         <span className="px-4 py-1 rounded-full bg-indigo-500 text-[10px] font-black uppercase tracking-widest text-white mb-4 inline-block">
-                            Phase 1: Question
+                            Phase 1: Frage
                         </span>
                         <h2 className="text-4xl font-black text-white leading-tight mt-4">
                             {question}
@@ -150,7 +159,7 @@ export default function GamePage() {
                             <>
                                 <textarea
                                     className="kahoot-input min-h-[120px] resize-none text-xl p-6"
-                                    placeholder="Type your answer here..."
+                                    placeholder="Deine Antwort hier eingeben..."
                                     value={answer}
                                     onChange={(e) => setAnswer(e.target.value)}
                                 />
@@ -159,13 +168,14 @@ export default function GamePage() {
                                     className="w-full kahoot-button flex items-center justify-center gap-2 text-xl"
                                 >
                                     <Send size={24} />
-                                    Submit Answer
+                                    Antwort senden
                                 </button>
                             </>
                         ) : (
-                            <div className="p-8 rounded-2xl bg-white/5 border border-white/10 text-center">
-                                <Loader2 size={32} className="text-indigo-400 animate-spin mx-auto mb-4" />
-                                <p className="text-white font-bold">Waiting for others to answer...</p>
+                            <div className="p-8 rounded-2xl bg-green-500/20 border border-green-500/30 text-center">
+                                <Check size={32} className="text-green-400 mx-auto mb-4" />
+                                <p className="text-white font-bold text-xl">Antwort gesendet!</p>
+                                <p className="text-white/60 text-sm mt-2 font-medium">Warte auf die anderen Spieler...</p>
                             </div>
                         )}
                     </div>
@@ -192,8 +202,8 @@ export default function GamePage() {
                     className="w-full max-w-4xl"
                 >
                     <div className="text-center mb-12">
-                        <h2 className="text-5xl font-black uppercase tracking-tighter mb-4">Who is Lying?</h2>
-                        <p className="text-white/60 text-xl">Read the answers and vote for the imposter!</p>
+                        <h2 className="text-5xl font-black uppercase tracking-tighter mb-4">Wer ist der Imposter?</h2>
+                        <p className="text-white/60 text-xl font-medium">Lies die Antworten und stimme für den Imposter ab!</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -206,18 +216,21 @@ export default function GamePage() {
                                     whileTap={player.id !== socket?.id ? { scale: 0.98 } : {}}
                                     onClick={() => player.id !== socket?.id && votePlayer(player.id)}
                                     disabled={votedPlayers.includes(socket?.id || "") || player.id === socket?.id}
-                                    className={`kahoot-card text-left group transition-all overflow-hidden relative ${votedPlayers.includes(socket?.id || "") ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:border-white/40 border-transparent'
-                                        } ${player.id === socket?.id ? 'border-indigo-500/50 cursor-default' : ''}`}
+                                    className={`kahoot-card text-left group transition-all overflow-hidden relative ${votedPlayers.includes(socket?.id || "") ? 'opacity-80' : 'hover:border-white/40 border-transparent hover:-translate-y-1'
+                                        } ${player.id === socket?.id ? 'border-indigo-500/50 grayscale-[0.5] cursor-default' : ''} ${votedPlayers.includes(socket?.id || "") && !hasVoted ? 'grayscale shadow-none scale-95' : ''
+                                        } ${hasVoted ? 'border-green-500 ring-2 ring-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.2)]' : ''}`}
                                 >
                                     <div className="relative z-10">
                                         <div className="flex justify-between items-start mb-2">
-                                            <span className="text-xs font-bold text-white/40 uppercase block">{player.name}'s Answer</span>
+                                            <span className="text-xs font-bold text-white/40 uppercase block">Antwort von {player.name}</span>
                                             {hasVoted && (
-                                                <span className="bg-green-500/20 text-green-400 text-[10px] font-black px-2 py-1 rounded uppercase tracking-tighter">Voted</span>
+                                                <span className="bg-green-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter shadow-lg shadow-green-900/40">
+                                                    Abgestimmt ✅
+                                                </span>
                                             )}
                                         </div>
                                         <p className="text-2xl font-bold leading-tight group-hover:text-indigo-300 transition-colors">
-                                            "{answers[player.id] || "Thinking..."}"
+                                            "{answers[player.id] || "Überlegt noch..."}"
                                         </p>
                                     </div>
                                     <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -246,11 +259,11 @@ export default function GamePage() {
                             animate={{ scale: 1 }}
                             className="text-7xl font-[1000] uppercase tracking-[0.2em] mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white to-white/20 italic"
                         >
-                            The Results
+                            Wer ist der Imposter?
                         </motion.h2>
                         <div className="h-1 w-24 bg-indigo-500 mx-auto rounded-full mb-6" />
                         <p className="text-white/40 text-xl font-medium tracking-widest uppercase">
-                            Who was the lying one?
+                            Wer hat hier gelogen?
                         </p>
                     </div>
 
@@ -266,8 +279,8 @@ export default function GamePage() {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.15, duration: 0.6 }}
                                     className={`relative group p-1 rounded-[2rem] transition-all duration-700 ${isTheImposter
-                                            ? 'bg-gradient-to-br from-red-500 via-red-600 to-red-900 shadow-[0_0_50px_rgba(239,68,68,0.4)] ring-4 ring-red-500/20'
-                                            : 'bg-white/5 hover:bg-white/10'
+                                        ? 'bg-gradient-to-br from-red-500 via-red-600 to-red-900 shadow-[0_0_50px_rgba(239,68,68,0.4)] ring-4 ring-red-500/20'
+                                        : 'bg-white/5 hover:bg-white/10'
                                         }`}
                                 >
                                     <div className={`p-8 rounded-[1.8rem] h-full flex flex-col ${isTheImposter ? 'bg-black/40 backdrop-blur-xl' : 'bg-slate-900/40 backdrop-blur-md border border-white/5'}`}>
@@ -278,19 +291,19 @@ export default function GamePage() {
                                                 </h3>
                                                 {isTheImposter && (
                                                     <span className="text-[10px] font-black bg-red-500 text-white px-2 py-0.5 rounded uppercase tracking-tighter">
-                                                        The Imposter
+                                                        Der Imposter
                                                     </span>
                                                 )}
                                             </div>
                                             <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center ${isTheImposter ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-white/40'}`}>
                                                 <span className="text-lg font-black leading-none">{voteCount}</span>
-                                                <span className="text-[8px] font-bold uppercase">Votes</span>
+                                                <span className="text-[8px] font-bold uppercase">Stimmen</span>
                                             </div>
                                         </div>
 
                                         <div className="flex-1 flex flex-col justify-center py-4">
                                             <p className={`text-2xl font-bold leading-snug break-words ${isTheImposter ? 'text-red-100 italic' : 'text-white'}`}>
-                                                "{answers[player.id] || "No answer"}"
+                                                "{answers[player.id] || "Keine Antwort"}"
                                             </p>
                                         </div>
 
@@ -330,7 +343,7 @@ export default function GamePage() {
                             onClick={() => window.location.reload()}
                             className="group relative px-16 py-5 overflow-hidden rounded-2xl bg-white text-slate-950 text-xl font-black uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 shadow-[0_20px_40px_rgba(255,255,255,0.1)]"
                         >
-                            <span className="relative z-10">Play Again</span>
+                            <span className="relative z-10">Nochmal spielen</span>
                             <div className="absolute inset-0 bg-indigo-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                         </button>
                     </motion.div>

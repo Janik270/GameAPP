@@ -67,7 +67,7 @@ export default function AdminDashboard() {
 
                 <Link href="/" className="flex items-center gap-2 text-white/50 hover:text-white transition-colors">
                     <LogOut size={20} />
-                    <span className="font-bold">End Session</span>
+                    <span className="font-bold">Sitzung beenden</span>
                 </Link>
             </div>
 
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
                 {/* Left: Lobby Info */}
                 <div className="lg:col-span-1 space-y-6">
                     <div className="kahoot-card border-indigo-500/20 bg-indigo-500/5">
-                        <p className="text-xs font-bold text-indigo-300 uppercase mb-2">Game PIN</p>
+                        <p className="text-xs font-bold text-indigo-300 uppercase mb-2">Spiel-PIN</p>
                         <div className="flex items-center justify-between">
                             <h2 className="text-6xl font-black text-white tracking-widest">
                                 {lobbyCode || "------"}
@@ -87,18 +87,18 @@ export default function AdminDashboard() {
                                 {copied ? <Check size={24} className="text-green-400" /> : <Copy size={24} />}
                             </button>
                         </div>
-                        <p className="mt-4 text-sm text-white/40">Share this code with players to join the game.</p>
+                        <p className="mt-4 text-sm text-white/40">Teile diesen Code mit den Spielern, damit sie beitreten können.</p>
                     </div>
 
                     <div className="kahoot-card">
                         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                             <Play size={20} className="text-green-400" />
-                            Game Settings
+                            Spiel-Einstellungen
                         </h3>
                         <div className="space-y-4">
                             <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                                <p className="font-bold text-white">Who is Lying?</p>
-                                <p className="text-xs text-white/40 mt-1">First game mode selected by default.</p>
+                                <p className="font-bold text-white">Wer ist der Imposter?</p>
+                                <p className="text-xs text-white/40 mt-1">Standard-Spielmodus ausgewählt.</p>
                             </div>
 
                             <button
@@ -109,7 +109,7 @@ export default function AdminDashboard() {
                                     : "bg-white/5 text-white/20 cursor-not-allowed"
                                     }`}
                             >
-                                {players.length >= 3 ? "Start Game" : "Need 3+ Players"}
+                                {players.length >= 3 ? "Spiel starten" : "Mindestens 3 Spieler"}
                             </button>
                         </div>
                     </div>
@@ -121,9 +121,9 @@ export default function AdminDashboard() {
                     {gameData && gameData.status !== 'lobby' && (
                         <div className="kahoot-card border-indigo-500/30 bg-indigo-500/10">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-black text-white uppercase tracking-tight">Game Progress</h3>
+                                <h3 className="text-xl font-black text-white uppercase tracking-tight">Spielverlauf</h3>
                                 <span className="px-4 py-1 rounded-full bg-indigo-500 text-[10px] font-black uppercase tracking-widest text-white">
-                                    {gameData.status}
+                                    {gameData.status === 'question' ? 'Frage' : gameData.status === 'voting' ? 'Voting' : 'Reveal'}
                                 </span>
                             </div>
 
@@ -134,15 +134,22 @@ export default function AdminDashboard() {
                                     const isTheImposter = player.id === gameData.imposterId;
 
                                     return (
-                                        <div key={player.id} className={`p-4 rounded-xl border ${isTheImposter ? 'bg-indigo-900/40 border-indigo-400/30' : 'bg-white/5 border-white/10'}`}>
+                                        <div key={player.id} className={`p-4 rounded-xl border ${isTheImposter ? 'bg-red-900/40 border-red-400/30' : 'bg-white/5 border-white/10'}`}>
                                             <div className="flex justify-between items-center mb-2">
-                                                <span className="font-bold text-white">{player.name} {isTheImposter && "🕵️"}</span>
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-white">{player.name}</span>
+                                                    {isTheImposter && (
+                                                        <span className="text-[9px] font-black bg-red-500 text-white px-2 py-0.5 rounded uppercase tracking-tighter w-fit mt-1">
+                                                            Der Imposter
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="flex gap-2">
                                                     <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${hasAnswered ? 'bg-green-500/20 text-green-400' : 'bg-white/5 text-white/20'}`}>
-                                                        Answered
+                                                        Geantwortet
                                                     </span>
                                                     <span className={`text-[9px] font-black px-2 py-0.5 rounded uppercase ${hasVoted ? 'bg-blue-500/20 text-blue-400' : 'bg-white/5 text-white/20'}`}>
-                                                        Voted
+                                                        Abgestimmt
                                                     </span>
                                                 </div>
                                             </div>
@@ -155,7 +162,7 @@ export default function AdminDashboard() {
 
                                             {gameData.status === 'reveal' && (
                                                 <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center">
-                                                    <span className="text-[10px] font-bold text-white/40 uppercase">Votes Received</span>
+                                                    <span className="text-[10px] font-bold text-white/40 uppercase">Erhaltene Stimmen</span>
                                                     <span className="text-lg font-black text-white">
                                                         {Object.values(gameData.votes).filter(v => v === player.id).length}
                                                     </span>
@@ -173,7 +180,7 @@ export default function AdminDashboard() {
                         <div className="kahoot-card min-h-[400px] flex flex-col">
                             <div className="flex justify-between items-center mb-8">
                                 <h3 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
-                                    Players
+                                    Spieler
                                     <span className="px-3 py-1 rounded-full bg-white/10 text-sm font-bold text-indigo-300">
                                         {players.length}
                                     </span>
@@ -183,7 +190,7 @@ export default function AdminDashboard() {
                             {players.length === 0 ? (
                                 <div className="flex-1 flex flex-col items-center justify-center text-white/20 space-y-4">
                                     <Users size={64} strokeWidth={1} />
-                                    <p className="text-lg font-medium">Waiting for players to join...</p>
+                                    <p className="text-lg font-medium">Warte auf Spieler...</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -217,7 +224,7 @@ export default function AdminDashboard() {
             <div className="absolute bottom-8 right-8 flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
                 <span className="text-[10px] uppercase font-black tracking-widest text-white/20">
-                    {connected ? "Connected" : "Disconnected"}
+                    {connected ? "Verbunden" : "Getrennt"}
                 </span>
             </div>
         </main>
