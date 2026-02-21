@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useParams } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
-import { Gamepad2, Users, Loader2, Send } from "lucide-react";
+import { Gamepad2, Users, Loader2, Send, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Phase = 'lobby' | 'question' | 'voting' | 'reveal';
@@ -11,11 +11,10 @@ type Phase = 'lobby' | 'question' | 'voting' | 'reveal';
 export default function GamePage() {
     const { code } = useParams();
     const searchParams = useSearchParams();
-    const playerName = searchParams.get("name");
-    const { socket, connected } = useSocket();
-
     const [phase, setPhase] = useState<Phase>('lobby');
     const [players, setPlayers] = useState<{ id: string, name: string }[]>([]);
+    const [localPlayerName, setLocalPlayerName] = useState(playerName || "");
+    const [isJoined, setIsJoined] = useState(false);
     const [question, setQuestion] = useState<string>("");
     const [isImposter, setIsImposter] = useState(false);
     const [answer, setAnswer] = useState("");
@@ -24,10 +23,12 @@ export default function GamePage() {
     const [answeredPlayers, setAnsweredPlayers] = useState<string[]>([]);
     const [votedPlayers, setVotedPlayers] = useState<string[]>([]);
     const [imposterId, setImposterId] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isVoting, setIsVoting] = useState(false);
 
     useEffect(() => {
-        if (socket && connected && code && playerName) {
-            socket.emit("join-lobby", { lobbyCode: code, playerName });
+        if (socket && connected && code && localPlayerName && isJoined) {
+            socket.emit("join-lobby", { lobbyCode: code, playerName: localPlayerName });
 
             socket.on("player-joined", ({ players }) => {
                 setPlayers(players);
@@ -41,6 +42,8 @@ export default function GamePage() {
                 setVotedPlayers([]);
                 setAnswers({});
                 setVotes({});
+                setIsSubmitting(false);
+                setIsVoting(false);
 
                 // In a real game, questions would come from server
                 const baseQuestion = "Was ist dein Lieblingstier?";
@@ -91,19 +94,68 @@ export default function GamePage() {
             socket?.off("all-answered");
             socket?.off("reveal");
         };
-    }, [socket, connected, code, playerName]);
+    }, [socket, connected, code, localPlayerName, isJoined]);
+
+    const handleJoinClick = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (localPlayerName.trim()) {
+            setIsJoined(true);
+        }
+    };
 
     const submitAnswer = () => {
-        if (socket && answer) {
+        if (socket && answer && !isSubmitting) {
+            setIsSubmitting(true);
             socket.emit("submit-answer", { lobbyCode: code, answer });
         }
     };
 
     const votePlayer = (playerId: string) => {
-        if (socket) {
+        if (socket && !isVoting) {
+            setIsVoting(true);
             socket.emit("vote-player", { lobbyCode: code, votedPlayerId: playerId });
         }
     };
+
+    if (!isJoined) {
+        return (
+            <main className="flex min-h-screen flex-col items-center justify-center p-6 relative overflow-hidden">
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="w-full max-w-md kahoot-card"
+                >
+                    <div className="flex justify-center mb-6">
+                        <div className="p-4 rounded-2xl bg-white/10 shadow-inner">
+                            <Gamepad2 size={48} className="text-white" />
+                        </div>
+                    </div>
+
+                    <h1 className="kahoot-title text-center mb-2">Beitritt zu {code}</h1>
+                    <p className="text-white/50 text-center mb-8 font-medium">Gib deinen Spitznamen ein, um dem Spiel beizutreten.</p>
+
+                    <form onSubmit={handleJoinClick} className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-white/50 uppercase ml-1">Spitzname</label>
+                            <input
+                                type="text"
+                                placeholder="Dein Name"
+                                className="kahoot-input"
+                                value={localPlayerName}
+                                onChange={(e) => setLocalPlayerName(e.target.value)}
+                                required
+                                autoFocus
+                            />
+                        </div>
+
+                        <button type="submit" className="w-full kahoot-button text-xl uppercase tracking-wider">
+                            Dem Spiel beitreten
+                        </button>
+                    </form>
+                </motion.div>
+            </main>
+        );
+    }
 
     if (phase === 'lobby') {
         return (
@@ -165,10 +217,16 @@ export default function GamePage() {
                                 />
                                 <button
                                     onClick={submitAnswer}
-                                    className="w-full kahoot-button flex items-center justify-center gap-2 text-xl"
+                                    disabled={!answer || isSubmitting}
+                                    className={`w-full kahoot-button flex items-center justify-center gap-2 text-xl transition-all ${(!answer || isSubmitting) ? 'opacity-50 cursor-not-allowed grayscale scale-95' : 'hover:scale-105 active:scale-95'
+                                        }`}
                                 >
-                                    <Send size={24} />
-                                    Antwort senden
+                                    {isSubmitting ? (
+                                        <Loader2 className="animate-spin" size={24} />
+                                    ) : (
+                                        <Send size={24} />
+                                    )}
+                                    {isSubmitting ? "Wird gesendet..." : "Antwort senden"}
                                 </button>
                             </>
                         ) : (
@@ -212,10 +270,10 @@ export default function GamePage() {
                             return (
                                 <motion.button
                                     key={player.id}
-                                    whileHover={player.id !== socket?.id ? { scale: 1.02 } : {}}
-                                    whileTap={player.id !== socket?.id ? { scale: 0.98 } : {}}
-                                    onClick={() => player.id !== socket?.id && votePlayer(player.id)}
-                                    disabled={votedPlayers.includes(socket?.id || "") || player.id === socket?.id}
+                                    whileHover={(player.id !== socket?.id && !isVoting && !votedPlayers.includes(socket?.id || "")) ? { scale: 1.02 } : {}}
+                                    whileTap={(player.id !== socket?.id && !isVoting && !votedPlayers.includes(socket?.id || "")) ? { scale: 0.98 } : {}}
+                                    onClick={() => player.id !== socket?.id && !isVoting && votePlayer(player.id)}
+                                    disabled={votedPlayers.includes(socket?.id || "") || player.id === socket?.id || isVoting}
                                     className={`kahoot-card text-left group transition-all overflow-hidden relative ${votedPlayers.includes(socket?.id || "") ? 'opacity-80' : 'hover:border-white/40 border-transparent hover:-translate-y-1'
                                         } ${player.id === socket?.id ? 'border-indigo-500/50 grayscale-[0.5] cursor-default' : ''} ${votedPlayers.includes(socket?.id || "") && !hasVoted ? 'grayscale shadow-none scale-95' : ''
                                         } ${hasVoted ? 'border-green-500 ring-2 ring-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.2)]' : ''}`}

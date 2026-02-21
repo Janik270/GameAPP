@@ -3,6 +3,8 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import next from 'next';
 import cors from 'cors';
+import os from 'os';
+import http from 'http';
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
@@ -22,6 +24,44 @@ app.prepare().then(() => {
 
     server.use(cors());
 
+    let cachedNetworkInfo: { networkIps: string[], publicIp: string } | null = null;
+    let lastIpFetch = 0;
+    const IP_CACHE_TIME = 1000 * 60 * 10; // 10 minutes
+
+    const getNetworkInfo = async (force: boolean = false) => {
+        const now = Date.now();
+        if (!force && cachedNetworkInfo && (now - lastIpFetch < IP_CACHE_TIME)) {
+            return cachedNetworkInfo;
+        }
+
+        const interfaces = os.networkInterfaces();
+        const networkIps: string[] = [];
+        for (const iface in interfaces) {
+            for (const details of interfaces[iface] || []) {
+                if (details.family === 'IPv4' && !details.internal) {
+                    networkIps.push(details.address);
+                }
+            }
+        }
+
+        console.log('Server: Network IPs detected:', networkIps);
+
+        let publicIp = '';
+        try {
+            console.log('Server: Fetching public IP...');
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = (await response.json()) as { ip: string };
+            publicIp = data.ip;
+            console.log('Server: Public IP detected:', publicIp);
+        } catch (e) {
+            console.log('Server: Could not fetch public IP');
+        }
+
+        cachedNetworkInfo = { networkIps, publicIp };
+        lastIpFetch = now;
+        return cachedNetworkInfo;
+    };
+
     // Game state (in-memory)
     const lobbies: Record<string, {
         hostId: string;
@@ -34,13 +74,15 @@ app.prepare().then(() => {
         };
     }> = {};
 
-    const emitHostUpdate = (lobbyCode: string) => {
+    const emitHostUpdate = async (lobbyCode: string) => {
         const lobby = lobbies[lobbyCode];
         if (lobby) {
+            const networkInfo = await getNetworkInfo();
             io.to(lobby.hostId).emit('host-update', {
                 players: lobby.players,
                 gameData: lobby.gameData,
-                lobbyCode
+                lobbyCode,
+                networkInfo
             });
         }
     };
@@ -60,9 +102,12 @@ app.prepare().then(() => {
                 }
             };
             socket.join(lobbyCode);
-            socket.emit('lobby-created', { lobbyCode });
-            console.log(`Lobby ${lobbyCode} created by ${socket.id}`);
-            emitHostUpdate(lobbyCode);
+            // Get network info before emitting
+            getNetworkInfo().then(networkInfo => {
+                socket.emit('lobby-created', { lobbyCode, networkInfo });
+                console.log(`Lobby ${lobbyCode} created by ${socket.id}`);
+                emitHostUpdate(lobbyCode);
+            });
         });
 
         socket.on('join-lobby', ({ lobbyCode, playerName }) => {
@@ -143,11 +188,11 @@ app.prepare().then(() => {
         });
     });
 
-    server.all('*all', (req, res) => {
+    server.all(/.*/, (req, res) => {
         return handle(req, res);
     });
 
-    httpServer.listen(port, () => {
-        console.log(`> Ready on http://localhost:${port}`);
+    httpServer.listen(Number(port), '0.0.0.0', () => {
+        console.log(`> Ready on http://0.0.0.0:${port}`);
     });
 });
