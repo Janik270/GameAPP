@@ -12,6 +12,7 @@ export default function AdminDashboardContent() {
     const [lobbyCode, setLobbyCode] = useState<string | null>(null);
     const [players, setPlayers] = useState<{ id: string, name: string }[]>([]);
     const [gameData, setGameData] = useState<any>(null);
+    const [gameType, setGameType] = useState<string>("who-is-lying");
     const [copied, setCopied] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
     const [baseUrl, setBaseUrl] = useState("");
@@ -62,7 +63,7 @@ export default function AdminDashboardContent() {
     const startGame = () => {
         if (socket && lobbyCode && !isStarting) {
             setIsStarting(true);
-            socket.emit("start-game", { lobbyCode, gameType: "who-is-lying" });
+            socket.emit("start-game", { lobbyCode, gameType });
         }
     };
 
@@ -105,17 +106,7 @@ export default function AdminDashboardContent() {
                                 <p className="text-[10px] font-bold text-white uppercase italic">QR-Code wird generiert...</p>
                                 <div className="p-4 bg-white rounded-2xl shadow-2xl ring-8 ring-white/10">
                                     <QRCodeCanvas
-                                        value={
-                                            networkInfo?.networkIps && networkInfo.networkIps.length > 0
-                                                ? `http://${networkInfo.networkIps[0]}:3000/game/${lobbyCode}`
-                                                : networkInfo?.publicIp
-                                                    ? `http://${networkInfo.publicIp}:3000/game/${lobbyCode}`
-                                                    : baseUrl
-                                                        ? `${baseUrl}/game/${lobbyCode}`
-                                                        : typeof window !== 'undefined'
-                                                            ? `${window.location.protocol}//${window.location.hostname}:3000/game/${lobbyCode}`
-                                                            : `http://localhost:3000/game/${lobbyCode}`
-                                        }
+                                        value={`https://play.hackerwerkstatt.de/game/${lobbyCode}`}
                                         size={200}
                                         level={"H"}
                                         includeMargin={true}
@@ -126,6 +117,17 @@ export default function AdminDashboardContent() {
                                     Scannen zum Mitspielen
                                 </div>
                                 <div className="flex flex-col items-center gap-2 w-full">
+                                    <div className="bg-black/40 p-2 rounded-lg w-full text-center group cursor-pointer hover:bg-black/60 transition-colors"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(`https://play.hackerwerkstatt.de/game/${lobbyCode}`);
+                                            setCopied(true);
+                                            setTimeout(() => setCopied(false), 2000);
+                                        }}>
+                                        <p className="text-[9px] text-indigo-300 font-bold uppercase mb-1">Production URL</p>
+                                        <p className="text-[10px] text-white font-mono break-all">
+                                            https://play.hackerwerkstatt.de/game/{lobbyCode}
+                                        </p>
+                                    </div>
                                     {networkInfo?.publicIp && (
                                         <div className="bg-black/40 p-2 rounded-lg w-full text-center group cursor-pointer hover:bg-black/60 transition-colors"
                                             onClick={() => {
@@ -173,9 +175,21 @@ export default function AdminDashboardContent() {
                             Spiel-Einstellungen
                         </h3>
                         <div className="space-y-4">
-                            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                                <p className="font-bold text-white">Wer ist der Imposter?</p>
-                                <p className="text-xs text-white/40 mt-1">Standard-Spielmodus ausgewählt.</p>
+                            <div className="grid grid-cols-1 gap-2">
+                                <button
+                                    onClick={() => setGameType("who-is-lying")}
+                                    className={`p-4 rounded-xl border text-left transition-all ${gameType === 'who-is-lying' ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                                >
+                                    <p className="font-bold text-white">Wer ist der Imposter?</p>
+                                    <p className="text-xs text-white/40 mt-1">Finde heraus, wer lügt.</p>
+                                </button>
+                                <button
+                                    onClick={() => setGameType("most-likely")}
+                                    className={`p-4 rounded-xl border text-left transition-all ${gameType === 'most-likely' ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                                >
+                                    <p className="font-bold text-white">Wer würde am ehesten...</p>
+                                    <p className="text-xs text-white/40 mt-1">Stimmt über eure Freunde ab.</p>
+                                </button>
                             </div>
 
                             <button

@@ -6,6 +6,7 @@ import cors from 'cors';
 import os from 'os';
 import http from 'http';
 import { questionBank } from './src/data/questions';
+import { mostLikelyQuestions } from './src/data/mostLikelyQuestions';
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
@@ -151,6 +152,18 @@ app.prepare().then(() => {
                         imposterId,
                         normalQuestion: selectedQuestion.normal,
                         imposterQuestion: selectedQuestion.imposter
+                    });
+                } else if (gameType === 'most-likely') {
+                    const questionIndex = Math.floor(Math.random() * mostLikelyQuestions.length);
+                    const selectedQuestion = mostLikelyQuestions[questionIndex];
+
+                    lobby.gameData.status = 'voting'; // Skip question phase
+                    lobby.gameData.answers = {};
+                    lobby.gameData.votes = {};
+
+                    io.to(lobbyCode).emit('game-started', {
+                        gameType,
+                        question: selectedQuestion
                     });
                 }
                 emitHostUpdate(lobbyCode);

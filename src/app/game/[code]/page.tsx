@@ -27,6 +27,7 @@ export default function GamePage() {
     const [imposterId, setImposterId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isVoting, setIsVoting] = useState(false);
+    const [gameType, setGameType] = useState<string>("who-is-lying");
 
     useEffect(() => {
         if (socket && connected && code && localPlayerName && isJoined) {
@@ -36,16 +37,14 @@ export default function GamePage() {
                 setPlayers(players);
             });
 
-            socket.on("game-started", ({ gameType, imposterId, normalQuestion, imposterQuestion }: {
+            socket.on("game-started", ({ gameType: incomingType, imposterId, normalQuestion, imposterQuestion, question: incomingQuestion }: {
                 gameType: string,
-                imposterId: string,
-                normalQuestion: string,
-                imposterQuestion: string
+                imposterId?: string,
+                normalQuestion?: string,
+                imposterQuestion?: string,
+                question?: string
             }) => {
-                setPhase('question');
-                const isNowImposter = socket.id === imposterId;
-                setIsImposter(isNowImposter);
-                setImposterId(imposterId);
+                setGameType(incomingType);
                 setAnsweredPlayers([]);
                 setVotedPlayers([]);
                 setAnswers({});
@@ -53,7 +52,16 @@ export default function GamePage() {
                 setIsSubmitting(false);
                 setIsVoting(false);
 
-                setQuestion(isNowImposter ? imposterQuestion : normalQuestion);
+                if (incomingType === 'who-is-lying') {
+                    setPhase('question');
+                    const isNowImposter = socket.id === imposterId;
+                    setIsImposter(isNowImposter);
+                    setImposterId(imposterId || null);
+                    setQuestion(isNowImposter ? imposterQuestion! : normalQuestion!);
+                } else if (incomingType === 'most-likely') {
+                    setPhase('voting');
+                    setQuestion(incomingQuestion!);
+                }
             });
 
             socket.on("answer-submitted", ({ playerId, answer }: { playerId: string, answer: string }) => {
@@ -264,8 +272,12 @@ export default function GamePage() {
                     className="w-full max-w-4xl"
                 >
                     <div className="text-center mb-12">
-                        <h2 className="text-5xl font-black uppercase tracking-tighter mb-4">Wer ist der Imposter?</h2>
-                        <p className="text-white/60 text-xl font-medium">Lies die Antworten und stimme für den Imposter ab!</p>
+                        <h2 className="text-5xl font-black uppercase tracking-tighter mb-4">
+                            {gameType === 'most-likely' ? question : 'Wer ist der Imposter?'}
+                        </h2>
+                        <p className="text-white/60 text-xl font-medium">
+                            {gameType === 'most-likely' ? 'Stimme für die Person ab, die am ehesten passt!' : 'Lies die Antworten und stimme für den Imposter ab!'}
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -292,7 +304,7 @@ export default function GamePage() {
                                             )}
                                         </div>
                                         <p className="text-2xl font-bold leading-tight group-hover:text-indigo-300 transition-colors">
-                                            "{answers[player.id] || "Überlegt noch..."}"
+                                            {gameType === 'most-likely' ? player.name : `"${answers[player.id] || "Überlegt noch..."}"`}
                                         </p>
                                     </div>
                                     <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -321,7 +333,7 @@ export default function GamePage() {
                             animate={{ scale: 1 }}
                             className="text-7xl font-[1000] uppercase tracking-[0.2em] mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white to-white/20 italic"
                         >
-                            Wer ist der Imposter?
+                            {gameType === 'most-likely' ? 'Ergebnis' : 'Wer ist der Imposter?'}
                         </motion.h2>
                         <div className="h-1 w-24 bg-indigo-500 mx-auto rounded-full mb-6" />
                         <p className="text-white/40 text-xl font-medium tracking-widest uppercase">
@@ -365,7 +377,7 @@ export default function GamePage() {
 
                                         <div className="flex-1 flex flex-col justify-center py-4">
                                             <p className={`text-2xl font-bold leading-snug break-words ${isTheImposter ? 'text-red-100 italic' : 'text-white'}`}>
-                                                "{answers[player.id] || "Keine Antwort"}"
+                                                {gameType === 'most-likely' ? player.name : `"${answers[player.id] || "Keine Antwort"}"`}
                                             </p>
                                         </div>
 
