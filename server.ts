@@ -72,10 +72,16 @@ app.prepare().then(() => {
             imposterId?: string;
             answers: Record<string, string>;
             votes: Record<string, string>; // voterId -> votedPlayerId
-            status: 'lobby' | 'question' | 'voting' | 'reveal';
+            status: 'lobby' | 'question' | 'voting' | 'reveal' | 'finance-duel';
             currentRound: number;
             maxRounds: number;
             gameType: string;
+            // Finance Duel specific
+            market?: Record<string, { price: number, history: number[] }>;
+            portfolios?: Record<string, { balance: number, assets: Record<string, number> }>;
+            timeLeft?: number;
+            duration?: number;
+            timerInterval?: any;
         };
     }> = {};
 
@@ -144,6 +150,80 @@ app.prepare().then(() => {
                 lobby.gameData.maxRounds = maxRounds || 1;
                 lobby.gameData.currentRound = 1;
                 lobby.gameData.gameType = gameType;
+
+                if (gameType === 'finance-duel') {
+                    lobby.gameData.status = 'finance-duel';
+                    lobby.gameData.duration = (maxRounds || 3) * 60; // maxRounds is used as minutes here
+                    lobby.gameData.timeLeft = lobby.gameData.duration;
+                    lobby.gameData.market = {
+                        'BTC': { price: 50000, history: [50000] },
+                        'AAPL': { price: 150, history: [150] },
+                        'TSLA': { price: 200, history: [200] },
+                        'GLD': { price: 1800, history: [1800] }
+                    };
+                    lobby.gameData.portfolios = {};
+                    lobby.players.forEach(p => {
+                        lobby.gameData.portfolios![p.id] = { balance: 10000, assets: {} };
+                    });
+
+                    // Start market & timer interval
+                    if (lobby.gameData.timerInterval) clearInterval(lobby.gameData.timerInterval);
+                    lobby.gameData.timerInterval = setInterval(() => {
+                        if (!lobbies[lobbyCode]) {
+                            clearInterval(lobby.gameData.timerInterval);
+                            return;
+                        }
+
+                        // Update prices (random walk)
+                        const market = lobby.gameData.market!;
+                        Object.keys(market).forEach(symbol => {
+                            const change = (Math.random() - 0.48) * 0.02; // Slightly bullish
+                            market[symbol].price = Math.max(1, market[symbol].price * (1 + change));
+                            market[symbol].history.push(market[symbol].price);
+                            if (market[symbol].history.length > 20) market[symbol].history.shift();
+                        });
+
+                        // Update timer
+                        lobby.gameData.timeLeft! -= 1;
+
+                        if (lobby.gameData.timeLeft! <= 0) {
+                            clearInterval(lobby.gameData.timerInterval);
+                            lobby.gameData.status = 'reveal';
+
+                            // Send reveal with final rankings
+                            const rankings = lobby.players.map(p => {
+                                const portfolio = lobby.gameData.portfolios![p.id];
+                                let netWorth = portfolio.balance;
+                                Object.entries(portfolio.assets).forEach(([symbol, amount]) => {
+                                    netWorth += amount * market[symbol].price;
+                                });
+                                return { id: p.id, name: p.name, netWorth, portfolio };
+                            }).sort((a, b) => b.netWorth - a.netWorth);
+
+                            io.to(lobbyCode).emit('reveal', {
+                                gameType: 'finance-duel',
+                                rankings,
+                                market
+                            });
+                        } else {
+                            io.to(lobbyCode).emit('market-update', {
+                                market: lobby.gameData.market,
+                                timeLeft: lobby.gameData.timeLeft,
+                                portfolios: lobby.gameData.portfolios
+                            });
+                        }
+                        emitHostUpdate(lobbyCode);
+                    }, 1000);
+
+                    io.to(lobbyCode).emit('game-started', {
+                        gameType: 'finance-duel',
+                        market: lobby.gameData.market,
+                        duration: lobby.gameData.duration,
+                        portfolios: lobby.gameData.portfolios
+                    });
+                    emitHostUpdate(lobbyCode);
+                    return;
+                }
 
                 startNewRound(lobbyCode);
             }
@@ -230,6 +310,41 @@ app.prepare().then(() => {
                     });
                 }
                 emitHostUpdate(lobbyCode);
+            }
+        });
+
+        socket.on('buy-asset', ({ lobbyCode, symbol, amount }) => {
+            const lobby = lobbies[lobbyCode];
+            if (lobby && lobby.gameData.status === 'finance-duel') {
+                const portfolio = lobby.gameData.portfolios![socket.id];
+                const price = lobby.gameData.market![symbol].price;
+                const cost = price * amount;
+
+                if (portfolio.balance >= cost) {
+                    portfolio.balance -= cost;
+                    portfolio.assets[symbol] = (portfolio.assets[symbol] || 0) + amount;
+                    // Broadcast update to the specific player and host
+                    socket.emit('portfolio-update', { portfolio });
+                    emitHostUpdate(lobbyCode);
+                }
+            }
+        });
+
+        socket.on('sell-asset', ({ lobbyCode, symbol, amount }) => {
+            const lobby = lobbies[lobbyCode];
+            if (lobby && lobby.gameData.status === 'finance-duel') {
+                const portfolio = lobby.gameData.portfolios![socket.id];
+                const currentAmount = portfolio.assets[symbol] || 0;
+
+                if (currentAmount >= amount) {
+                    const price = lobby.gameData.market![symbol].price;
+                    portfolio.balance += price * amount;
+                    portfolio.assets[symbol] -= amount;
+                    if (portfolio.assets[symbol] === 0) delete portfolio.assets[symbol];
+                    // Broadcast update to the specific player and host
+                    socket.emit('portfolio-update', { portfolio });
+                    emitHostUpdate(lobbyCode);
+                }
             }
         });
 

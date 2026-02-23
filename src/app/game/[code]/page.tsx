@@ -6,7 +6,7 @@ import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { Gamepad2, Users, Loader2, Send, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-type Phase = 'lobby' | 'question' | 'voting' | 'reveal';
+type Phase = 'lobby' | 'question' | 'voting' | 'reveal' | 'finance-duel';
 
 export default function GamePage() {
     const { code } = useParams();
@@ -31,6 +31,11 @@ export default function GamePage() {
     const [currentRound, setCurrentRound] = useState(1);
     const [maxRounds, setMaxRounds] = useState(1);
     const [isLastRound, setIsLastRound] = useState(false);
+    // Finance State
+    const [market, setMarket] = useState<Record<string, { price: number, history: number[] }>>({});
+    const [portfolio, setPortfolio] = useState<{ balance: number, assets: Record<string, number> }>({ balance: 0, assets: {} });
+    const [timeLeft, setTimeLeft] = useState(0);
+    const [rankings, setRankings] = useState<any[]>([]);
 
     useEffect(() => {
         if (socket && connected && code && localPlayerName && isJoined) {
@@ -40,14 +45,16 @@ export default function GamePage() {
                 setPlayers(players);
             });
 
-            socket.on("game-started", ({ gameType: incomingType, imposterId, normalQuestion, imposterQuestion, question: incomingQuestion, currentRound: curRound, maxRounds: maxRoundsVal }: {
+            socket.on("game-started", ({ gameType: incomingType, imposterId, normalQuestion, imposterQuestion, question: incomingQuestion, currentRound: curRound, maxRounds: maxRoundsVal, market: initialMarket, portfolios }: {
                 gameType: string,
                 imposterId?: string,
                 normalQuestion?: string,
                 imposterQuestion?: string,
                 question?: string,
                 currentRound?: number,
-                maxRounds?: number
+                maxRounds?: number,
+                market?: any,
+                portfolios?: any
             }) => {
                 setGameType(incomingType);
                 setAnsweredPlayers([]);
@@ -56,6 +63,7 @@ export default function GamePage() {
                 setVotes({});
                 setIsSubmitting(false);
                 setIsVoting(false);
+                setIsLastRound(false);
                 if (curRound) setCurrentRound(curRound);
                 if (maxRoundsVal) setMaxRounds(maxRoundsVal);
 
@@ -68,7 +76,21 @@ export default function GamePage() {
                 } else if (incomingType === 'most-likely') {
                     setPhase('voting');
                     setQuestion(incomingQuestion!);
+                } else if (incomingType === 'finance-duel') {
+                    setPhase('finance-duel');
+                    if (initialMarket) setMarket(initialMarket);
+                    if (portfolios && portfolios[socket.id]) setPortfolio(portfolios[socket.id]);
                 }
+            });
+
+            socket.on("market-update", ({ market, timeLeft, portfolios }) => {
+                setMarket(market);
+                setTimeLeft(timeLeft);
+                if (portfolios && portfolios[socket.id]) setPortfolio(portfolios[socket.id]);
+            });
+
+            socket.on("portfolio-update", ({ portfolio }) => {
+                setPortfolio(portfolio);
             });
 
             socket.on("answer-submitted", ({ playerId, answer }: { playerId: string, answer: string }) => {
@@ -85,8 +107,14 @@ export default function GamePage() {
                 setVotedPlayers(prev => [...new Set([...prev, voterId])]);
             });
 
-            socket.on("reveal", ({ imposterId, votes, answers, isLastRound: lastRound }: { imposterId: string, votes: Record<string, string>, answers: Record<string, string>, isLastRound?: boolean }) => {
+            socket.on("reveal", ({ imposterId, votes, answers, isLastRound: lastRound, gameType: gType, rankings: finalRankings, market: finalMarket }: { imposterId: string, votes: Record<string, string>, answers: Record<string, string>, isLastRound?: boolean, gameType?: string, rankings?: any[], market?: any }) => {
                 setPhase('reveal');
+                if (gType === 'finance-duel') {
+                    setRankings(finalRankings || []);
+                    setMarket(finalMarket || {});
+                    setIsLastRound(true);
+                    return;
+                }
                 setImposterId(imposterId);
                 setIsImposter(socket.id === imposterId);
                 setAnswers(answers);
@@ -134,6 +162,18 @@ export default function GamePage() {
         if (socket && !isVoting) {
             setIsVoting(true);
             socket.emit("vote-player", { lobbyCode: code, votedPlayerId: playerId });
+        }
+    };
+
+    const buyAsset = (symbol: string, amount: number) => {
+        if (socket && code) {
+            socket.emit("buy-asset", { lobbyCode: code, symbol, amount });
+        }
+    };
+
+    const sellAsset = (symbol: string, amount: number) => {
+        if (socket && code) {
+            socket.emit("sell-asset", { lobbyCode: code, symbol, amount });
         }
     };
 
@@ -327,6 +367,92 @@ export default function GamePage() {
         );
     }
 
+    if (phase === 'finance-duel') {
+        const netWorth = portfolio.balance + Object.entries(portfolio.assets).reduce((acc, [symbol, amount]) => {
+            return acc + (amount * (market[symbol]?.price || 0));
+        }, 0);
+
+        return (
+            <main className="flex min-h-screen flex-col p-4 md:p-8 bg-slate-950 text-white gap-6">
+                {/* Header with Stats */}
+                <div className="flex flex-col md:flex-row justify-between items-center bg-white/5 p-6 rounded-3xl border border-white/10 gap-4">
+                    <div className="flex items-center gap-6">
+                        <div>
+                            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Portfoliowert</p>
+                            <h2 className="text-3xl font-black tracking-tight text-white">${Math.round(netWorth).toLocaleString()}</h2>
+                        </div>
+                        <div className="w-px h-10 bg-white/10" />
+                        <div>
+                            <p className="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1">Verfügbar</p>
+                            <h2 className="text-xl font-black text-white/80">${Math.round(portfolio.balance).toLocaleString()}</h2>
+                        </div>
+                    </div>
+                    <div className="flex flex-col items-center md:items-end">
+                        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Zeit übrig</p>
+                        <div className="text-3xl font-black font-mono text-indigo-500">
+                            {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Market Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 overflow-y-auto">
+                    {Object.entries(market).map(([symbol, data]) => (
+                        <div key={symbol} className="kahoot-card flex flex-col justify-between group">
+                            <div>
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h3 className="text-2xl font-black">{symbol}</h3>
+                                        <p className="text-xs font-bold text-white/40">Marktpreis</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xl font-bold font-mono">${data.price.toFixed(2)}</p>
+                                        <span className={`text-[10px] font-black ${(data.history[data.history.length - 1] > data.history[data.history.length - 2]) ? 'text-green-400' : 'text-red-400'}`}>
+                                            {(data.history[data.history.length - 1] > data.history[data.history.length - 2]) ? '▲ UP' : '▼ DOWN'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="h-16 flex items-end gap-1 mb-4">
+                                    {data.history.slice(-15).map((h, i) => {
+                                        const min = Math.min(...data.history.slice(-15));
+                                        const max = Math.max(...data.history.slice(-15));
+                                        const height = max === min ? 50 : ((h - min) / (max - min)) * 100;
+                                        return (
+                                            <div key={i} className="flex-1 bg-indigo-500/20 rounded-t-sm relative group/bar" style={{ height: `${Math.max(10, height)}%` }}>
+                                                <div className="absolute inset-x-0 bottom-0 bg-indigo-500 rounded-t-sm opacity-50 group-hover/bar:opacity-100 transition-opacity" />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex justify-between items-center text-sm font-bold bg-white/5 p-3 rounded-xl">
+                                    <span className="text-white/40">In Besitz</span>
+                                    <span>{portfolio.assets[symbol] || 0}</span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 mt-4">
+                                <button
+                                    onClick={() => buyAsset(symbol, 1)}
+                                    disabled={portfolio.balance < data.price}
+                                    className="p-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-black uppercase text-xs transition-all disabled:opacity-50 disabled:grayscale"
+                                >
+                                    Kaufen
+                                </button>
+                                <button
+                                    onClick={() => sellAsset(symbol, 1)}
+                                    disabled={!portfolio.assets[symbol]}
+                                    className="p-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black uppercase text-xs transition-all disabled:opacity-50 disabled:grayscale"
+                                >
+                                    Verkaufen
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </main>
+        );
+    }
+
     if (phase === 'reveal') {
         return (
             <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-slate-950 text-white overflow-y-auto">
@@ -350,69 +476,111 @@ export default function GamePage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {players.map((player, index) => {
-                            const isTheImposter = player.id === imposterId;
-                            const voteCount = votes[player.id] || 0;
-
-                            return (
+                        {gameType === 'finance-duel' ? (
+                            rankings.map((player, index) => (
                                 <motion.div
                                     key={player.id}
                                     initial={{ opacity: 0, y: 40 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: index * 0.15, duration: 0.6 }}
-                                    className={`relative group p-1 rounded-[2rem] transition-all duration-700 ${isTheImposter
-                                        ? 'bg-gradient-to-br from-red-500 via-red-600 to-red-900 shadow-[0_0_50px_rgba(239,68,68,0.4)] ring-4 ring-red-500/20'
+                                    className={`relative group p-1 rounded-[2rem] transition-all duration-700 ${index === 0
+                                        ? 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-800 shadow-[0_0_50px_rgba(234,179,8,0.4)] ring-4 ring-yellow-500/20'
                                         : 'bg-white/5 hover:bg-white/10'
                                         }`}
                                 >
-                                    <div className={`p-8 rounded-[1.8rem] h-full flex flex-col ${isTheImposter ? 'bg-black/40 backdrop-blur-xl' : 'bg-slate-900/40 backdrop-blur-md border border-white/5'}`}>
+                                    <div className={`p-8 rounded-[1.8rem] h-full flex flex-col ${index === 0 ? 'bg-black/40 backdrop-blur-xl' : 'bg-slate-900/40 backdrop-blur-md border border-white/5'}`}>
                                         <div className="flex justify-between items-start mb-6">
                                             <div>
-                                                <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${isTheImposter ? 'text-red-400' : 'text-indigo-400'}`}>
+                                                <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${index === 0 ? 'text-yellow-400' : 'text-indigo-400'}`}>
                                                     {player.name}
                                                 </h3>
-                                                {isTheImposter && (
-                                                    <span className="text-[10px] font-black bg-red-500 text-white px-2 py-0.5 rounded uppercase tracking-tighter">
-                                                        Der Imposter
-                                                    </span>
-                                                )}
+                                                <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${index === 0 ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white/50'}`}>
+                                                    Platz {index + 1}
+                                                </span>
                                             </div>
-                                            <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center ${isTheImposter ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-white/40'}`}>
-                                                <span className="text-lg font-black leading-none">{voteCount}</span>
-                                                <span className="text-[8px] font-bold uppercase">Stimmen</span>
+                                            <div className="text-right">
+                                                <p className="text-2xl font-black text-white">${Math.round(player.netWorth).toLocaleString()}</p>
+                                                <p className="text-[10px] font-bold text-white/40 uppercase">Gesamtvermögen</p>
                                             </div>
                                         </div>
-
-                                        <div className="flex-1 flex flex-col justify-center py-4">
-                                            <p className={`text-2xl font-bold leading-snug break-words ${isTheImposter ? 'text-red-100 italic' : 'text-white'}`}>
-                                                {gameType === 'most-likely' ? player.name : `"${answers[player.id] || "Keine Antwort"}"`}
-                                            </p>
-                                        </div>
-
-                                        <div className="mt-8 pt-6 border-t border-white/5">
-                                            <div className="flex -space-x-2">
-                                                {/* In a real scenario, you'd show WHO voted for them here */}
-                                                {[...Array(Math.min(voteCount, 5))].map((_, i) => (
-                                                    <div key={i} className={`w-8 h-8 rounded-full border-2 ${isTheImposter ? 'bg-red-900 border-red-500' : 'bg-indigo-900 border-indigo-500'} flex items-center justify-center text-[10px] font-black`}>
-                                                        ?
-                                                    </div>
-                                                ))}
-                                                {voteCount > 5 && (
-                                                    <div className="w-8 h-8 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center text-[10px] font-black text-white/40">
-                                                        +{voteCount - 5}
-                                                    </div>
-                                                )}
+                                        <div className="space-y-2 mt-4">
+                                            <div className="flex justify-between text-[10px] font-bold uppercase text-white/40">
+                                                <span>Cash</span>
+                                                <span>${Math.round(player.portfolio.balance).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between text-[10px] font-bold uppercase text-white/40">
+                                                <span>Assets</span>
+                                                <span>{Object.keys(player.portfolio.assets).length} Diversifiziert</span>
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Ornamental glow for imposter */}
-                                    {isTheImposter && (
-                                        <div className="absolute -inset-4 bg-red-500/10 blur-3xl -z-10 rounded-full animate-pulse" />
-                                    )}
                                 </motion.div>
-                            );
-                        })}
+                            ))
+                        ) : (
+                            players.map((player, index) => {
+                                const isTheImposter = player.id === imposterId;
+                                const voteCount = votes[player.id] || 0;
+
+                                return (
+                                    <motion.div
+                                        key={player.id}
+                                        initial={{ opacity: 0, y: 40 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.15, duration: 0.6 }}
+                                        className={`relative group p-1 rounded-[2rem] transition-all duration-700 ${isTheImposter
+                                            ? 'bg-gradient-to-br from-red-500 via-red-600 to-red-900 shadow-[0_0_50px_rgba(239,68,68,0.4)] ring-4 ring-red-500/20'
+                                            : 'bg-white/5 hover:bg-white/10'
+                                            }`}
+                                    >
+                                        <div className={`p-8 rounded-[1.8rem] h-full flex flex-col ${isTheImposter ? 'bg-black/40 backdrop-blur-xl' : 'bg-slate-900/40 backdrop-blur-md border border-white/5'}`}>
+                                            <div className="flex justify-between items-start mb-6">
+                                                <div>
+                                                    <h3 className={`text-sm font-black uppercase tracking-widest mb-1 ${isTheImposter ? 'text-red-400' : 'text-indigo-400'}`}>
+                                                        {player.name}
+                                                    </h3>
+                                                    {isTheImposter && (
+                                                        <span className="text-[10px] font-black bg-red-500 text-white px-2 py-0.5 rounded uppercase tracking-tighter">
+                                                            Der Imposter
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center ${isTheImposter ? 'bg-red-500/20 text-red-500' : 'bg-white/5 text-white/40'}`}>
+                                                    <span className="text-lg font-black leading-none">{voteCount}</span>
+                                                    <span className="text-[8px] font-bold uppercase">Stimmen</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex-1 flex flex-col justify-center py-4">
+                                                <p className={`text-2xl font-bold leading-snug break-words ${isTheImposter ? 'text-red-100 italic' : 'text-white'}`}>
+                                                    {gameType === 'most-likely' ? player.name : `"${answers[player.id] || "Keine Antwort"}"`}
+                                                </p>
+                                            </div>
+
+                                            <div className="mt-8 pt-6 border-t border-white/5">
+                                                <div className="flex -space-x-2">
+                                                    {/* In a real scenario, you'd show WHO voted for them here */}
+                                                    {[...Array(Math.min(voteCount, 5))].map((_, i) => (
+                                                        <div key={i} className={`w-8 h-8 rounded-full border-2 ${isTheImposter ? 'bg-red-900 border-red-500' : 'bg-indigo-900 border-indigo-500'} flex items-center justify-center text-[10px] font-black`}>
+                                                            ?
+                                                        </div>
+                                                    ))}
+                                                    {voteCount > 5 && (
+                                                        <div className="w-8 h-8 rounded-full bg-white/5 border-2 border-white/10 flex items-center justify-center text-[10px] font-black text-white/40">
+                                                            +{voteCount - 5}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Ornamental glow for imposter */}
+                                        {isTheImposter && (
+                                            <div className="absolute -inset-4 bg-red-500/10 blur-3xl -z-10 rounded-full animate-pulse" />
+                                        )}
+                                    </motion.div>
+                                );
+                            })
+                        )}
                     </div>
 
                     <motion.div

@@ -195,13 +195,20 @@ export default function AdminDashboardContent() {
                                     className={`p-4 rounded-xl border text-left transition-all ${gameType === 'most-likely' ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
                                 >
                                     <p className="font-bold text-white">Wer würde am ehesten...</p>
-                                    <p className="text-xs text-white/40 mt-1">Stimmt über eure Freunde ab.</p>
+                                    <p className="text-xs text-white/40 mt-1">Stimme über eure Freunde ab.</p>
+                                </button>
+                                <button
+                                    onClick={() => setGameType("finance-duel")}
+                                    className={`p-4 rounded-xl border text-left transition-all ${gameType === 'finance-duel' ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                                >
+                                    <p className="font-bold text-white">💸 Finanz-Duell</p>
+                                    <p className="text-xs text-white/40 mt-1">Handle mit Bitcoin & Aktien.</p>
                                 </button>
                             </div>
 
                             <div className="space-y-2 pt-2">
                                 <div className="flex justify-between items-center text-xs font-bold text-white/50 uppercase">
-                                    <span>Runden</span>
+                                    <span>{gameType === 'finance-duel' ? 'Minuten' : 'Runden'}</span>
                                     <span className="text-indigo-400">{maxRounds}</span>
                                 </div>
                                 <input
@@ -244,10 +251,16 @@ export default function AdminDashboardContent() {
                             <div className="flex justify-between items-center mb-6">
                                 <div className="flex flex-col">
                                     <h3 className="text-xl font-black text-white uppercase tracking-tight">Spielverlauf</h3>
-                                    <p className="text-xs font-bold text-indigo-400 uppercase">Runde {gameData.currentRound} von {gameData.maxRounds}</p>
+                                    {gameData.gameType === 'finance-duel' ? (
+                                        <p className="text-xs font-bold text-indigo-400 uppercase">
+                                            Zeit übrig: {Math.floor(gameData.timeLeft / 60)}:{(gameData.timeLeft % 60).toString().padStart(2, '0')}
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs font-bold text-indigo-400 uppercase">Runde {gameData.currentRound} von {gameData.maxRounds}</p>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    {gameData.status === 'reveal' && gameData.currentRound < gameData.maxRounds && (
+                                    {gameData.status === 'reveal' && gameData.gameType !== 'finance-duel' && gameData.currentRound < gameData.maxRounds && (
                                         <button
                                             onClick={nextRound}
                                             className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-green-900/40"
@@ -256,7 +269,7 @@ export default function AdminDashboardContent() {
                                         </button>
                                     )}
                                     <span className="px-4 py-1 rounded-full bg-indigo-500 text-[10px] font-black uppercase tracking-widest text-white">
-                                        {gameData.status === 'question' ? 'Frage' : gameData.status === 'voting' ? 'Voting' : 'Reveal'}
+                                        {gameData.status === 'question' ? 'Frage' : gameData.status === 'voting' ? 'Voting' : gameData.status === 'finance-duel' ? 'Trading' : 'Reveal'}
                                     </span>
                                 </div>
                             </div>
@@ -296,9 +309,14 @@ export default function AdminDashboardContent() {
 
                                             {gameData.status === 'reveal' && (
                                                 <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center">
-                                                    <span className="text-[10px] font-bold text-white/40 uppercase">Erhaltene Stimmen</span>
+                                                    <span className="text-[10px] font-bold text-white/40 uppercase">
+                                                        {gameData.gameType === 'finance-duel' ? 'Gesamtvermögen' : 'Erhaltene Stimmen'}
+                                                    </span>
                                                     <span className="text-lg font-black text-white">
-                                                        {Object.values(gameData.votes).filter(v => v === player.id).length}
+                                                        {gameData.gameType === 'finance-duel'
+                                                            ? `$${Math.round(gameData.rankings?.find((r: any) => r.id === player.id)?.netWorth || 0).toLocaleString()}`
+                                                            : Object.values(gameData.votes).filter(v => v === player.id).length
+                                                        }
                                                     </span>
                                                 </div>
                                             )}
