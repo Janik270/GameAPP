@@ -79,14 +79,14 @@ export default function GamePage() {
                 } else if (incomingType === 'finance-duel') {
                     setPhase('finance-duel');
                     if (initialMarket) setMarket(initialMarket);
-                    if (portfolios && portfolios[socket.id]) setPortfolio(portfolios[socket.id]);
+                    if (portfolios && socket.id && portfolios[socket.id]) setPortfolio(portfolios[socket.id]);
                 }
             });
 
             socket.on("market-update", ({ market, timeLeft, portfolios }) => {
                 setMarket(market);
                 setTimeLeft(timeLeft);
-                if (portfolios && portfolios[socket.id]) setPortfolio(portfolios[socket.id]);
+                if (portfolios && socket.id && portfolios[socket.id]) setPortfolio(portfolios[socket.id]);
             });
 
             socket.on("portfolio-update", ({ portfolio }) => {
