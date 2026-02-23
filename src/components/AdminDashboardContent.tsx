@@ -17,6 +17,7 @@ export default function AdminDashboardContent() {
     const [isStarting, setIsStarting] = useState(false);
     const [baseUrl, setBaseUrl] = useState("");
     const [networkInfo, setNetworkInfo] = useState<{ networkIps: string[], publicIp: string } | null>(null);
+    const [maxRounds, setMaxRounds] = useState(3);
 
     useEffect(() => {
         setBaseUrl(window.location.origin);
@@ -63,7 +64,13 @@ export default function AdminDashboardContent() {
     const startGame = () => {
         if (socket && lobbyCode && !isStarting) {
             setIsStarting(true);
-            socket.emit("start-game", { lobbyCode, gameType });
+            socket.emit("start-game", { lobbyCode, gameType, maxRounds });
+        }
+    };
+
+    const nextRound = () => {
+        if (socket && lobbyCode) {
+            socket.emit("next-round", { lobbyCode });
         }
     };
 
@@ -192,6 +199,21 @@ export default function AdminDashboardContent() {
                                 </button>
                             </div>
 
+                            <div className="space-y-2 pt-2">
+                                <div className="flex justify-between items-center text-xs font-bold text-white/50 uppercase">
+                                    <span>Runden</span>
+                                    <span className="text-indigo-400">{maxRounds}</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="10"
+                                    value={maxRounds}
+                                    onChange={(e) => setMaxRounds(parseInt(e.target.value))}
+                                    className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                />
+                            </div>
+
                             <button
                                 onClick={startGame}
                                 disabled={players.length < 3 || isStarting}
@@ -220,10 +242,23 @@ export default function AdminDashboardContent() {
                     {gameData && gameData.status !== 'lobby' && (
                         <div className="kahoot-card border-indigo-500/30 bg-indigo-500/10">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-xl font-black text-white uppercase tracking-tight">Spielverlauf</h3>
-                                <span className="px-4 py-1 rounded-full bg-indigo-500 text-[10px] font-black uppercase tracking-widest text-white">
-                                    {gameData.status === 'question' ? 'Frage' : gameData.status === 'voting' ? 'Voting' : 'Reveal'}
-                                </span>
+                                <div className="flex flex-col">
+                                    <h3 className="text-xl font-black text-white uppercase tracking-tight">Spielverlauf</h3>
+                                    <p className="text-xs font-bold text-indigo-400 uppercase">Runde {gameData.currentRound} von {gameData.maxRounds}</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    {gameData.status === 'reveal' && gameData.currentRound < gameData.maxRounds && (
+                                        <button
+                                            onClick={nextRound}
+                                            className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-green-900/40"
+                                        >
+                                            Nächste Runde
+                                        </button>
+                                    )}
+                                    <span className="px-4 py-1 rounded-full bg-indigo-500 text-[10px] font-black uppercase tracking-widest text-white">
+                                        {gameData.status === 'question' ? 'Frage' : gameData.status === 'voting' ? 'Voting' : 'Reveal'}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

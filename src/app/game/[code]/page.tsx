@@ -28,6 +28,9 @@ export default function GamePage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isVoting, setIsVoting] = useState(false);
     const [gameType, setGameType] = useState<string>("who-is-lying");
+    const [currentRound, setCurrentRound] = useState(1);
+    const [maxRounds, setMaxRounds] = useState(1);
+    const [isLastRound, setIsLastRound] = useState(false);
 
     useEffect(() => {
         if (socket && connected && code && localPlayerName && isJoined) {
@@ -37,12 +40,14 @@ export default function GamePage() {
                 setPlayers(players);
             });
 
-            socket.on("game-started", ({ gameType: incomingType, imposterId, normalQuestion, imposterQuestion, question: incomingQuestion }: {
+            socket.on("game-started", ({ gameType: incomingType, imposterId, normalQuestion, imposterQuestion, question: incomingQuestion, currentRound: curRound, maxRounds: maxRoundsVal }: {
                 gameType: string,
                 imposterId?: string,
                 normalQuestion?: string,
                 imposterQuestion?: string,
-                question?: string
+                question?: string,
+                currentRound?: number,
+                maxRounds?: number
             }) => {
                 setGameType(incomingType);
                 setAnsweredPlayers([]);
@@ -51,6 +56,8 @@ export default function GamePage() {
                 setVotes({});
                 setIsSubmitting(false);
                 setIsVoting(false);
+                if (curRound) setCurrentRound(curRound);
+                if (maxRoundsVal) setMaxRounds(maxRoundsVal);
 
                 if (incomingType === 'who-is-lying') {
                     setPhase('question');
@@ -78,11 +85,12 @@ export default function GamePage() {
                 setVotedPlayers(prev => [...new Set([...prev, voterId])]);
             });
 
-            socket.on("reveal", ({ imposterId, votes, answers }: { imposterId: string, votes: Record<string, string>, answers: Record<string, string> }) => {
+            socket.on("reveal", ({ imposterId, votes, answers, isLastRound: lastRound }: { imposterId: string, votes: Record<string, string>, answers: Record<string, string>, isLastRound?: boolean }) => {
                 setPhase('reveal');
                 setImposterId(imposterId);
                 setIsImposter(socket.id === imposterId);
                 setAnswers(answers);
+                if (lastRound !== undefined) setIsLastRound(lastRound);
                 // Calculate vote counts (results)
                 const counts: Record<string, number> = {};
                 Object.values(votes as Record<string, string>).forEach(votedId => {
@@ -211,7 +219,7 @@ export default function GamePage() {
                             Wer ist der Imposter?
                         </motion.h1>
                         <span className="px-4 py-1 rounded-full bg-indigo-500 text-[10px] font-black uppercase tracking-widest text-white mb-4 inline-block">
-                            Phase 1: Frage
+                            Runde {currentRound} von {maxRounds}
                         </span>
                         <h2 className="text-4xl font-black text-white leading-tight mt-4">
                             {question}
@@ -276,7 +284,7 @@ export default function GamePage() {
                             {gameType === 'most-likely' ? question : 'Wer ist der Imposter?'}
                         </h2>
                         <p className="text-white/60 text-xl font-medium">
-                            {gameType === 'most-likely' ? 'Stimme für die Person ab, die am ehesten passt!' : 'Lies die Antworten und stimme für den Imposter ab!'}
+                            Runde {currentRound} von {maxRounds} • {gameType === 'most-likely' ? 'Stimme für die Person ab, die am ehesten passt!' : 'Lies die Antworten und stimme für den Imposter ab!'}
                         </p>
                     </div>
 
@@ -337,7 +345,7 @@ export default function GamePage() {
                         </motion.h2>
                         <div className="h-1 w-24 bg-indigo-500 mx-auto rounded-full mb-6" />
                         <p className="text-white/40 text-xl font-medium tracking-widest uppercase">
-                            Wer hat hier gelogen?
+                            Runde {currentRound} von {maxRounds} • {isLastRound ? 'Endergebnis' : 'Wer hat hier gelogen?'}
                         </p>
                     </div>
 
@@ -413,13 +421,20 @@ export default function GamePage() {
                         transition={{ delay: 1.5 }}
                         className="mt-24 flex flex-col items-center space-y-8"
                     >
-                        <button
-                            onClick={() => window.location.reload()}
-                            className="group relative px-16 py-5 overflow-hidden rounded-2xl bg-white text-slate-950 text-xl font-black uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 shadow-[0_20px_40px_rgba(255,255,255,0.1)]"
-                        >
-                            <span className="relative z-10">Nochmal spielen</span>
-                            <div className="absolute inset-0 bg-indigo-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                        </button>
+                        {isLastRound && (
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="group relative px-16 py-5 overflow-hidden rounded-2xl bg-white text-slate-950 text-xl font-black uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 shadow-[0_20px_40px_rgba(255,255,255,0.1)]"
+                            >
+                                <span className="relative z-10">Nochmal spielen</span>
+                                <div className="absolute inset-0 bg-indigo-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                            </button>
+                        )}
+                        {!isLastRound && (
+                            <div className="text-center text-white/50 animate-pulse font-bold uppercase tracking-widest">
+                                Warte auf den Host für die nächste Runde...
+                            </div>
+                        )}
                     </motion.div>
                 </motion.div>
             </main>

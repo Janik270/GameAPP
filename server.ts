@@ -73,6 +73,9 @@ app.prepare().then(() => {
             answers: Record<string, string>;
             votes: Record<string, string>; // voterId -> votedPlayerId
             status: 'lobby' | 'question' | 'voting' | 'reveal';
+            currentRound: number;
+            maxRounds: number;
+            gameType: string;
         };
     }> = {};
 
@@ -100,7 +103,10 @@ app.prepare().then(() => {
                 gameData: {
                     answers: {},
                     votes: {},
-                    status: 'lobby'
+                    status: 'lobby',
+                    currentRound: 0,
+                    maxRounds: 1,
+                    gameType: ''
                 }
             };
             socket.join(lobbyCode);
@@ -131,42 +137,66 @@ app.prepare().then(() => {
             }
         });
 
-        socket.on('start-game', ({ lobbyCode, gameType }) => {
+        socket.on('start-game', ({ lobbyCode, gameType, maxRounds }) => {
             const lobby = lobbies[lobbyCode];
             if (lobby && lobby.hostId === socket.id) {
                 lobby.gameData.status = 'question';
+                lobby.gameData.maxRounds = maxRounds || 1;
+                lobby.gameData.currentRound = 1;
+                lobby.gameData.gameType = gameType;
 
-                if (gameType === 'who-is-lying') {
-                    const imposterIndex = Math.floor(Math.random() * lobby.players.length);
-                    const imposterId = lobby.players[imposterIndex].id;
-                    lobby.gameData.imposterId = imposterId;
-                    lobby.gameData.answers = {};
-                    lobby.gameData.votes = {};
+                startNewRound(lobbyCode);
+            }
+        });
 
-                    // Select random question pair
-                    const questionIndex = Math.floor(Math.random() * questionBank.length);
-                    const selectedQuestion = questionBank[questionIndex];
+        const startNewRound = (lobbyCode: string) => {
+            const lobby = lobbies[lobbyCode];
+            if (!lobby) return;
 
-                    io.to(lobbyCode).emit('game-started', {
-                        gameType,
-                        imposterId,
-                        normalQuestion: selectedQuestion.normal,
-                        imposterQuestion: selectedQuestion.imposter
-                    });
-                } else if (gameType === 'most-likely') {
-                    const questionIndex = Math.floor(Math.random() * mostLikelyQuestions.length);
-                    const selectedQuestion = mostLikelyQuestions[questionIndex];
+            const gameType = lobby.gameData.gameType;
+            lobby.gameData.answers = {};
+            lobby.gameData.votes = {};
 
-                    lobby.gameData.status = 'voting'; // Skip question phase
-                    lobby.gameData.answers = {};
-                    lobby.gameData.votes = {};
+            if (gameType === 'who-is-lying') {
+                lobby.gameData.status = 'question';
+                const imposterIndex = Math.floor(Math.random() * lobby.players.length);
+                const imposterId = lobby.players[imposterIndex].id;
+                lobby.gameData.imposterId = imposterId;
 
-                    io.to(lobbyCode).emit('game-started', {
-                        gameType,
-                        question: selectedQuestion
-                    });
+                // Select random question pair
+                const questionIndex = Math.floor(Math.random() * questionBank.length);
+                const selectedQuestion = questionBank[questionIndex];
+
+                io.to(lobbyCode).emit('game-started', {
+                    gameType,
+                    imposterId,
+                    normalQuestion: selectedQuestion.normal,
+                    imposterQuestion: selectedQuestion.imposter,
+                    currentRound: lobby.gameData.currentRound,
+                    maxRounds: lobby.gameData.maxRounds
+                });
+            } else if (gameType === 'most-likely') {
+                lobby.gameData.status = 'voting'; // Skip question phase
+                const questionIndex = Math.floor(Math.random() * mostLikelyQuestions.length);
+                const selectedQuestion = mostLikelyQuestions[questionIndex];
+
+                io.to(lobbyCode).emit('game-started', {
+                    gameType,
+                    question: selectedQuestion,
+                    currentRound: lobby.gameData.currentRound,
+                    maxRounds: lobby.gameData.maxRounds
+                });
+            }
+            emitHostUpdate(lobbyCode);
+        };
+
+        socket.on('next-round', ({ lobbyCode }) => {
+            const lobby = lobbies[lobbyCode];
+            if (lobby && lobby.hostId === socket.id) {
+                if (lobby.gameData.currentRound < lobby.gameData.maxRounds) {
+                    lobby.gameData.currentRound++;
+                    startNewRound(lobbyCode);
                 }
-                emitHostUpdate(lobbyCode);
             }
         });
 
@@ -195,7 +225,8 @@ app.prepare().then(() => {
                     io.to(lobbyCode).emit('reveal', {
                         imposterId: lobby.gameData.imposterId,
                         votes: lobby.gameData.votes,
-                        answers: lobby.gameData.answers
+                        answers: lobby.gameData.answers,
+                        isLastRound: lobby.gameData.currentRound === lobby.gameData.maxRounds
                     });
                 }
                 emitHostUpdate(lobbyCode);
