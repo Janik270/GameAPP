@@ -77,11 +77,13 @@ app.prepare().then(() => {
             maxRounds: number;
             gameType: string;
             // Finance Duel specific
-            market?: Record<string, { price: number, history: number[] }>;
+            market?: Record<string, { price: number, history: number[], momentum: number, volatility: number }>;
             portfolios?: Record<string, { balance: number, assets: Record<string, number> }>;
+            limitOrders?: { id: string, userId: string, symbol: string, type: 'buy' | 'sell', targetPrice: number, amount: number }[];
             timeLeft?: number;
             duration?: number;
             timerInterval?: any;
+            news?: { message: string, symbol?: string, impact: number, time: number }[];
         };
     }> = {};
 
@@ -156,12 +158,14 @@ app.prepare().then(() => {
                     lobby.gameData.duration = (maxRounds || 3) * 60; // maxRounds is used as minutes here
                     lobby.gameData.timeLeft = lobby.gameData.duration;
                     lobby.gameData.market = {
-                        'BTC': { price: 50000, history: [50000] },
-                        'AAPL': { price: 150, history: [150] },
-                        'TSLA': { price: 200, history: [200] },
-                        'GLD': { price: 1800, history: [1800] }
+                        'BTC': { price: 50000, history: [50000], momentum: 0, volatility: 0.02 },
+                        'AAPL': { price: 150, history: [150], momentum: 0, volatility: 0.01 },
+                        'TSLA': { price: 200, history: [200], momentum: 0, volatility: 0.03 },
+                        'GLD': { price: 1800, history: [1800], momentum: 0, volatility: 0.005 }
                     };
                     lobby.gameData.portfolios = {};
+                    lobby.gameData.limitOrders = [];
+                    lobby.gameData.news = [];
                     lobby.players.forEach(p => {
                         lobby.gameData.portfolios![p.id] = { balance: 10000, assets: {} };
                     });
@@ -174,13 +178,78 @@ app.prepare().then(() => {
                             return;
                         }
 
-                        // Update prices (random walk)
+                        // Update prices (advanced simulation)
                         const market = lobby.gameData.market!;
+                        const limitOrders = lobby.gameData.limitOrders!;
+
+                        // Random News
+                        if (Math.random() < 0.05) {
+                            const symbols = Object.keys(market);
+                            const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+                            const isPositive = Math.random() > 0.5;
+                            const newsMessages = [
+                                isPositive ? `${symbol} unterzeichnet Mega-Deal! 🚀` : `${symbol} enttäuscht mit Quartalszahlen. 📉`,
+                                isPositive ? `Analysten stufen ${symbol} auf "Strong Buy". 💎` : `Regulierungsbehörden nehmen ${symbol} ins Visier. ⚠️`,
+                                isPositive ? `${symbol} kündigt bahnbrechende Innovation an! ✨` : `Großinvestor verkauft Anteile von ${symbol}. ❌`
+                            ];
+                            const news = {
+                                message: newsMessages[Math.floor(Math.random() * newsMessages.length)],
+                                symbol,
+                                impact: (isPositive ? 1 : -1) * (Math.random() * 0.05 + 0.02),
+                                time: Date.now()
+                            };
+                            lobby.gameData.news!.unshift(news);
+                            if (lobby.gameData.news!.length > 5) lobby.gameData.news!.pop();
+
+                            // Apply news impact to momentum
+                            market[symbol].momentum += news.impact;
+                            io.to(lobbyCode).emit('news-alert', news);
+                        }
+
                         Object.keys(market).forEach(symbol => {
-                            const change = (Math.random() - 0.48) * 0.02; // Slightly bullish
-                            market[symbol].price = Math.max(1, market[symbol].price * (1 + change));
-                            market[symbol].history.push(market[symbol].price);
-                            if (market[symbol].history.length > 20) market[symbol].history.shift();
+                            const asset = market[symbol];
+                            // Reversion to mean for momentum
+                            asset.momentum *= 0.95;
+
+                            // Random noise + current momentum
+                            const randomNoise = (Math.random() - 0.5) * asset.volatility * 2;
+                            const totalChange = asset.momentum + randomNoise;
+
+                            asset.price = Math.max(1, asset.price * (1 + totalChange));
+                            asset.history.push(asset.price);
+                            if (asset.history.length > 30) asset.history.shift();
+
+                            // Execute Limit Orders
+                            for (let i = limitOrders.length - 1; i >= 0; i--) {
+                                const order = limitOrders[i];
+                                if (order.symbol !== symbol) continue;
+
+                                let shouldExecute = false;
+                                if (order.type === 'buy' && asset.price <= order.targetPrice) shouldExecute = true;
+                                if (order.type === 'sell' && asset.price >= order.targetPrice) shouldExecute = true;
+
+                                if (shouldExecute) {
+                                    const portfolio = lobby.gameData.portfolios![order.userId];
+                                    if (order.type === 'buy') {
+                                        const cost = asset.price * order.amount;
+                                        if (portfolio.balance >= cost) {
+                                            portfolio.balance -= cost;
+                                            portfolio.assets[symbol] = (portfolio.assets[symbol] || 0) + order.amount;
+                                            io.to(order.userId).emit('portfolio-update', { portfolio, message: `Limit-Order ausgeführt: Kaufe ${order.amount} ${symbol} @ $${asset.price.toFixed(2)}` });
+                                            limitOrders.splice(i, 1);
+                                        }
+                                    } else {
+                                        const currentAmount = portfolio.assets[symbol] || 0;
+                                        if (currentAmount >= order.amount) {
+                                            portfolio.balance += asset.price * order.amount;
+                                            portfolio.assets[symbol] -= order.amount;
+                                            if (portfolio.assets[symbol] === 0) delete portfolio.assets[symbol];
+                                            io.to(order.userId).emit('portfolio-update', { portfolio, message: `Limit-Order ausgeführt: Verkaufe ${order.amount} ${symbol} @ $${asset.price.toFixed(2)}` });
+                                            limitOrders.splice(i, 1);
+                                        }
+                                    }
+                                }
+                            }
                         });
 
                         // Update timer
@@ -209,7 +278,9 @@ app.prepare().then(() => {
                             io.to(lobbyCode).emit('market-update', {
                                 market: lobby.gameData.market,
                                 timeLeft: lobby.gameData.timeLeft,
-                                portfolios: lobby.gameData.portfolios
+                                portfolios: lobby.gameData.portfolios,
+                                news: lobby.gameData.news,
+                                limitOrders: lobby.gameData.limitOrders
                             });
                         }
                         emitHostUpdate(lobbyCode);
@@ -219,7 +290,8 @@ app.prepare().then(() => {
                         gameType: 'finance-duel',
                         market: lobby.gameData.market,
                         duration: lobby.gameData.duration,
-                        portfolios: lobby.gameData.portfolios
+                        portfolios: lobby.gameData.portfolios,
+                        news: lobby.gameData.news
                     });
                     emitHostUpdate(lobbyCode);
                     return;
@@ -348,9 +420,34 @@ app.prepare().then(() => {
             }
         });
 
+        socket.on('set-limit-order', ({ lobbyCode, symbol, type, targetPrice, amount }) => {
+            const lobby = lobbies[lobbyCode];
+            if (lobby && lobby.gameData.status === 'finance-duel') {
+                const order = {
+                    id: Math.random().toString(36).substring(7),
+                    userId: socket.id,
+                    symbol,
+                    type,
+                    targetPrice,
+                    amount
+                };
+                lobby.gameData.limitOrders!.push(order);
+                socket.emit('order-placed', { order });
+                emitHostUpdate(lobbyCode);
+            }
+        });
+
+        socket.on('cancel-limit-order', ({ lobbyCode, orderId }) => {
+            const lobby = lobbies[lobbyCode];
+            if (lobby && lobby.gameData.limitOrders) {
+                lobby.gameData.limitOrders = lobby.gameData.limitOrders.filter(o => o.id !== orderId);
+                socket.emit('order-cancelled', { orderId });
+                emitHostUpdate(lobbyCode);
+            }
+        });
+
         socket.on('disconnect', () => {
             console.log('Client disconnected:', socket.id);
-            // Handle player removal if needed
         });
     });
 
