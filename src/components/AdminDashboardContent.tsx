@@ -110,7 +110,11 @@ export default function AdminDashboardContent() {
                                                 ? `http://${networkInfo.networkIps[0]}:3000/game/${lobbyCode}`
                                                 : networkInfo?.publicIp
                                                     ? `http://${networkInfo.publicIp}:3000/game/${lobbyCode}`
-                                                    : baseUrl ? `${baseUrl}/game/${lobbyCode}` : `http://localhost:3000/game/${lobbyCode}`
+                                                    : baseUrl
+                                                        ? `${baseUrl}/game/${lobbyCode}`
+                                                        : typeof window !== 'undefined'
+                                                            ? `${window.location.protocol}//${window.location.hostname}:3000/game/${lobbyCode}`
+                                                            : `http://localhost:3000/game/${lobbyCode}`
                                         }
                                         size={200}
                                         level={"H"}
@@ -123,7 +127,12 @@ export default function AdminDashboardContent() {
                                 </div>
                                 <div className="flex flex-col items-center gap-2 w-full">
                                     {networkInfo?.publicIp && (
-                                        <div className="bg-black/40 p-2 rounded-lg w-full text-center">
+                                        <div className="bg-black/40 p-2 rounded-lg w-full text-center group cursor-pointer hover:bg-black/60 transition-colors"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(`http://${networkInfo.publicIp}:3000/game/${lobbyCode}`);
+                                                setCopied(true);
+                                                setTimeout(() => setCopied(false), 2000);
+                                            }}>
                                             <p className="text-[9px] text-indigo-300 font-bold uppercase mb-1">Öffentliche IP</p>
                                             <p className="text-[10px] text-white font-mono break-all">
                                                 http://{networkInfo.publicIp}:3000/game/{lobbyCode}
@@ -131,7 +140,12 @@ export default function AdminDashboardContent() {
                                         </div>
                                     )}
                                     {networkInfo?.networkIps.map(ip => (
-                                        <div key={ip} className="bg-black/40 p-2 rounded-lg w-full text-center">
+                                        <div key={ip} className="bg-black/40 p-2 rounded-lg w-full text-center group cursor-pointer hover:bg-black/60 transition-colors"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(`http://${ip}:3000/game/${lobbyCode}`);
+                                                setCopied(true);
+                                                setTimeout(() => setCopied(false), 2000);
+                                            }}>
                                             <p className="text-[9px] text-indigo-300 font-bold uppercase mb-1">Lokale IP</p>
                                             <p className="text-[10px] text-white font-mono break-all">
                                                 http://{ip}:3000/game/{lobbyCode}

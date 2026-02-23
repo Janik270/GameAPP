@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    container_name: gameapp
+    restart: always
+    environment:
+      - PORT=3000
+    networks:
+      - web
+    labels:
+      caddy: play.hackerwerkstatt.de
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+
+networks:
+  web:
+    external: true

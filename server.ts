@@ -5,6 +5,7 @@ import next from 'next';
 import cors from 'cors';
 import os from 'os';
 import http from 'http';
+import { questionBank } from './src/data/questions';
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
@@ -141,9 +142,15 @@ app.prepare().then(() => {
                     lobby.gameData.answers = {};
                     lobby.gameData.votes = {};
 
+                    // Select random question pair
+                    const questionIndex = Math.floor(Math.random() * questionBank.length);
+                    const selectedQuestion = questionBank[questionIndex];
+
                     io.to(lobbyCode).emit('game-started', {
                         gameType,
-                        imposterId
+                        imposterId,
+                        normalQuestion: selectedQuestion.normal,
+                        imposterQuestion: selectedQuestion.imposter
                     });
                 }
                 emitHostUpdate(lobbyCode);

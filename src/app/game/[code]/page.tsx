@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams, useParams } from "next/navigation";
 import { useSocket } from "@/hooks/useSocket";
+import { useRouter, useSearchParams, useParams } from "next/navigation";
 import { Gamepad2, Users, Loader2, Send, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -10,10 +10,12 @@ type Phase = 'lobby' | 'question' | 'voting' | 'reveal';
 
 export default function GamePage() {
     const { code } = useParams();
+    const router = useRouter();
     const searchParams = useSearchParams();
+    const { socket, connected } = useSocket();
     const [phase, setPhase] = useState<Phase>('lobby');
     const [players, setPlayers] = useState<{ id: string, name: string }[]>([]);
-    const [localPlayerName, setLocalPlayerName] = useState(playerName || "");
+    const [localPlayerName, setLocalPlayerName] = useState(searchParams.get("name") || "");
     const [isJoined, setIsJoined] = useState(false);
     const [question, setQuestion] = useState<string>("");
     const [isImposter, setIsImposter] = useState(false);
@@ -30,13 +32,19 @@ export default function GamePage() {
         if (socket && connected && code && localPlayerName && isJoined) {
             socket.emit("join-lobby", { lobbyCode: code, playerName: localPlayerName });
 
-            socket.on("player-joined", ({ players }) => {
+            socket.on("player-joined", ({ players }: { players: { id: string, name: string }[] }) => {
                 setPlayers(players);
             });
 
-            socket.on("game-started", ({ gameType, imposterId }) => {
+            socket.on("game-started", ({ gameType, imposterId, normalQuestion, imposterQuestion }: {
+                gameType: string,
+                imposterId: string,
+                normalQuestion: string,
+                imposterQuestion: string
+            }) => {
                 setPhase('question');
-                setIsImposter(socket.id === imposterId);
+                const isNowImposter = socket.id === imposterId;
+                setIsImposter(isNowImposter);
                 setImposterId(imposterId);
                 setAnsweredPlayers([]);
                 setVotedPlayers([]);
@@ -45,28 +53,24 @@ export default function GamePage() {
                 setIsSubmitting(false);
                 setIsVoting(false);
 
-                // In a real game, questions would come from server
-                const baseQuestion = "Was ist dein Lieblingstier?";
-                const imposterQuestion = "Welches Tier findest du am ekeligsten?";
-
-                setQuestion(socket.id === imposterId ? imposterQuestion : baseQuestion);
+                setQuestion(isNowImposter ? imposterQuestion : normalQuestion);
             });
 
-            socket.on("answer-submitted", ({ playerId, answer }) => {
+            socket.on("answer-submitted", ({ playerId, answer }: { playerId: string, answer: string }) => {
                 setAnsweredPlayers(prev => [...new Set([...prev, playerId])]);
             });
 
-            socket.on("all-answered", ({ answers }) => {
+            socket.on("all-answered", ({ answers }: { answers: Record<string, string> }) => {
                 setAnswers(answers);
                 setPhase('voting');
                 setAnsweredPlayers([]);
             });
 
-            socket.on("player-voted", ({ voterId }) => {
+            socket.on("player-voted", ({ voterId }: { voterId: string }) => {
                 setVotedPlayers(prev => [...new Set([...prev, voterId])]);
             });
 
-            socket.on("reveal", ({ imposterId, votes, answers }) => {
+            socket.on("reveal", ({ imposterId, votes, answers }: { imposterId: string, votes: Record<string, string>, answers: Record<string, string> }) => {
                 setPhase('reveal');
                 setImposterId(imposterId);
                 setIsImposter(socket.id === imposterId);
@@ -79,7 +83,7 @@ export default function GamePage() {
                 setVotes(counts);
             });
 
-            socket.on("error", ({ message }) => {
+            socket.on("error", ({ message }: { message: string }) => {
                 alert(message);
                 if (message === "Name already taken") {
                     router.push("/");
