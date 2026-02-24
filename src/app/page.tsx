@@ -26,7 +26,7 @@ export default function Home() {
         className="absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-lg bg-foreground/10 hover:bg-foreground/20 transition-all text-foreground/70 hover:text-foreground font-medium"
       >
         <LogIn size={20} />
-        <span>Admin Login</span>
+        <span>Hoster Login</span>
       </Link>
 
       <motion.div

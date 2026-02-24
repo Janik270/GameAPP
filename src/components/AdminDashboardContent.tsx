@@ -258,19 +258,29 @@ export default function AdminDashboardContent() {
                                 ))}
                             </div>
 
-                            <div className="space-y-2 pt-2">
-                                <div className="flex justify-between items-center text-xs font-bold text-foreground/50 uppercase">
+                            <div className="space-y-2 pt-2 bg-foreground/5 p-4 rounded-xl border border-foreground/10">
+                                <div className="flex justify-between items-center text-xs font-bold text-foreground/70 uppercase mb-2">
                                     <span>{gameType === 'finance-duel' ? 'Minuten' : 'Runden'}</span>
-                                    <span className="text-indigo-400">{maxRounds}</span>
+                                    <span className="text-xl text-primary">{maxRounds}</span>
                                 </div>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="10"
-                                    value={maxRounds}
-                                    onChange={(e) => setMaxRounds(parseInt(e.target.value))}
-                                    className="w-full h-2 bg-foreground/10 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                                />
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="range"
+                                        min="1"
+                                        max="30"
+                                        value={maxRounds}
+                                        onChange={(e) => setMaxRounds(parseInt(e.target.value))}
+                                        className="w-full h-3 bg-foreground/20 rounded-lg appearance-none cursor-pointer accent-primary"
+                                    />
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="99"
+                                        value={maxRounds}
+                                        onChange={(e) => setMaxRounds(parseInt(e.target.value) || 1)}
+                                        className="w-16 p-2 rounded-lg bg-foreground/10 border border-foreground/20 text-center font-bold text-foreground outline-none focus:border-primary"
+                                    />
+                                </div>
                             </div>
 
                             <button
