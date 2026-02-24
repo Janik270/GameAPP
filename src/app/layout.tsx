@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Game Box",
+  title: "270 Games",
   description: "Spiele mit deinen Freunden – von Janik270",
   icons: [
     { rel: "icon", url: "/favicon.png", type: "image/png" },

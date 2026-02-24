@@ -41,7 +41,7 @@ export default function Home() {
           </div>
         </div>
 
-        <h1 className="kahoot-title">Game Box</h1>
+        <h1 className="kahoot-title">270 Games</h1>
 
         <form onSubmit={handleJoin} className="space-y-6">
           <div className="space-y-2">
