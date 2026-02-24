@@ -15,10 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Game Box",
   description: "Spiele mit deinen Freunden – von Janik270",
-  icons: {
-    icon: "/favicon.svg",
-    apple: "/favicon.svg",
-  },
+  icons: [
+    { rel: "icon", url: "/favicon.png", type: "image/png" },
+    { rel: "apple-touch-icon", url: "/favicon.png" },
+  ],
 };
 
 export default function RootLayout({

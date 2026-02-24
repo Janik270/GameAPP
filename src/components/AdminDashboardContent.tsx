@@ -223,20 +223,20 @@ export default function AdminDashboardContent() {
 
                             <button
                                 onClick={startGame}
-                                disabled={players.length < 3 || isStarting}
-                                className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${players.length >= 3 && !isStarting
-                                    ? "bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/40"
-                                    : "bg-white/5 text-white/20 cursor-not-allowed grayscale"
+                                disabled={(gameType === 'finance-duel' ? players.length < 2 : players.length < 3) || isStarting}
+                                className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${(gameType === 'finance-duel' ? players.length >= 2 : players.length >= 3) && !isStarting
+                                        ? "bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/40"
+                                        : "bg-white/5 text-white/20 cursor-not-allowed grayscale"
                                     }`}
                             >
                                 {isStarting ? (
                                     <span className="flex items-center justify-center gap-2">
                                         Wird gestartet...
                                     </span>
-                                ) : players.length >= 3 ? (
+                                ) : (gameType === 'finance-duel' ? players.length >= 2 : players.length >= 3) ? (
                                     "Spiel starten"
                                 ) : (
-                                    "Mindestens 3 Spieler"
+                                    gameType === 'finance-duel' ? "Mindestens 2 Spieler" : "Mindestens 3 Spieler"
                                 )}
                             </button>
                         </div>
