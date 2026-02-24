@@ -76,7 +76,7 @@ export default function Home() {
       </motion.div>
 
       <div className="mt-12 text-white/30 text-sm font-medium">
-        Mit ❤️ gemacht
+        Von Janik270
       </div>
     </main >
   );
