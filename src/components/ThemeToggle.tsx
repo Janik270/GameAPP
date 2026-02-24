@@ -8,16 +8,16 @@ export default function ThemeToggle() {
 
     useEffect(() => {
         // Init theme
-        const savedTheme = localStorage.getItem("theme");
-        if (savedTheme) {
-            setTheme(savedTheme);
-            if (savedTheme === "light") {
-                document.documentElement.classList.add("light");
-            } else {
-                document.documentElement.classList.remove("light");
-            }
+        let savedTheme = localStorage.getItem("theme");
+        if (!savedTheme) {
+            savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        setTheme(savedTheme);
+        if (savedTheme === "light") {
+            document.documentElement.classList.add("light");
+            document.documentElement.classList.remove("dark");
         } else {
-            // Default to dark
+            document.documentElement.classList.add("dark");
             document.documentElement.classList.remove("light");
         }
     }, []);
@@ -29,7 +29,9 @@ export default function ThemeToggle() {
 
         if (newTheme === "light") {
             document.documentElement.classList.add("light");
+            document.documentElement.classList.remove("dark");
         } else {
+            document.documentElement.classList.add("dark");
             document.documentElement.classList.remove("light");
         }
     };
