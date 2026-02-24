@@ -10,6 +10,7 @@ RUN npm install
 
 # Copy source and build
 COPY . .
+RUN npx prisma db push
 RUN npx prisma generate
 RUN npm run build
 
@@ -32,6 +33,7 @@ COPY --from=builder /app/server.ts ./
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/tsconfig.server.json ./
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3000
 
