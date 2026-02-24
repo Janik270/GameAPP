@@ -2,24 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, ArrowLeft } from "lucide-react";
+import { UserPlus, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
-export default function AdminLogin() {
+export default function AdminRegister() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
         setIsLoading(true);
 
         try {
-            const res = await fetch('/api/auth/login', {
+            const res = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
@@ -27,13 +27,25 @@ export default function AdminLogin() {
 
             const data = await res.json();
 
-            if (res.ok) {
-                router.push("/admin/dashboard");
+            if (!res.ok) {
+                setError(data.error || 'Registration failed');
+                return;
+            }
+
+            // Immediately login after registration
+            const loginRes = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (loginRes.ok) {
+                router.push('/admin/dashboard');
             } else {
-                setError(data.error || "Login fehlgeschlagen");
+                router.push('/admin/login?registered=true');
             }
         } catch (err) {
-            setError("Ein Fehler ist aufgetreten.");
+            setError('An unexpected error occurred');
         } finally {
             setIsLoading(false);
         }
@@ -42,7 +54,7 @@ export default function AdminLogin() {
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-6 relative overflow-hidden">
             <Link
-                href="/"
+                href="/admin/login"
                 className="absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-white/70 hover:text-white font-medium"
             >
                 <ArrowLeft size={20} />
@@ -57,12 +69,12 @@ export default function AdminLogin() {
             >
                 <div className="flex justify-center mb-6">
                     <div className="p-4 rounded-full bg-indigo-500/20 shadow-inner">
-                        <ShieldCheck size={48} className="text-indigo-400" />
+                        <UserPlus size={48} className="text-indigo-400" />
                     </div>
                 </div>
 
-                <h1 className="text-3xl font-black text-center text-white mb-2 uppercase tracking-tighter">Hoster Login</h1>
-                <p className="text-white/50 text-center mb-8 text-sm">Einloggen, um eigene Spiele zu starten</p>
+                <h1 className="text-3xl font-black text-center text-white mb-2 uppercase tracking-tighter">Hoster Account</h1>
+                <p className="text-white/50 text-center mb-8 text-sm">Neuen Account erstellen</p>
 
                 {error && (
                     <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm font-medium text-center">
@@ -70,7 +82,7 @@ export default function AdminLogin() {
                     </div>
                 )}
 
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleRegister} className="space-y-4">
                     <div className="space-y-2">
                         <input
                             type="text"
@@ -98,12 +110,12 @@ export default function AdminLogin() {
                         disabled={isLoading}
                         className="w-full kahoot-button !bg-indigo-600 shadow-indigo-900/40 disabled:opacity-50"
                     >
-                        {isLoading ? 'Lädt...' : 'Einloggen'}
+                        {isLoading ? 'Lädt...' : 'Registrieren'}
                     </button>
 
                     <div className="text-center mt-4">
-                        <Link href="/admin/register" className="text-xs text-white/40 hover:text-white transition-colors">
-                            Noch keinen Account? Hier registrieren.
+                        <Link href="/admin/login" className="text-xs text-white/40 hover:text-white transition-colors">
+                            Bereits einen Account? Hier einloggen.
                         </Link>
                     </div>
                 </form>

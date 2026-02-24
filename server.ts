@@ -145,13 +145,14 @@ app.prepare().then(() => {
             }
         });
 
-        socket.on('start-game', ({ lobbyCode, gameType, maxRounds }) => {
+        socket.on('start-game', ({ lobbyCode, gameType, maxRounds, customGameId }) => {
             const lobby = lobbies[lobbyCode];
             if (lobby && lobby.hostId === socket.id) {
                 lobby.gameData.status = 'question';
                 lobby.gameData.maxRounds = maxRounds || 1;
                 lobby.gameData.currentRound = 1;
                 lobby.gameData.gameType = gameType;
+                (lobby.gameData as any).customGameId = customGameId; // Store custom game ID temporarily
 
                 if (gameType === 'finance-duel') {
                     lobby.gameData.status = 'finance-duel';
@@ -301,13 +302,29 @@ app.prepare().then(() => {
             }
         });
 
-        const startNewRound = (lobbyCode: string) => {
+        const startNewRound = async (lobbyCode: string) => {
             const lobby = lobbies[lobbyCode];
             if (!lobby) return;
 
             const gameType = lobby.gameData.gameType;
+            const customGameId = (lobby.gameData as any).customGameId;
             lobby.gameData.answers = {};
             lobby.gameData.votes = {};
+
+            let selectedQuestion: any = null;
+
+            if (customGameId) {
+                try {
+                    const { prisma } = require('./src/lib/db');
+                    const gamePack = await prisma.gamePack.findUnique({ where: { id: customGameId } });
+                    if (gamePack) {
+                        const questions = JSON.parse(gamePack.questions);
+                        selectedQuestion = questions[Math.floor(Math.random() * questions.length)];
+                    }
+                } catch (e) {
+                    console.error("Error fetching custom game", e);
+                }
+            }
 
             if (gameType === 'who-is-lying') {
                 lobby.gameData.status = 'question';
@@ -316,8 +333,10 @@ app.prepare().then(() => {
                 lobby.gameData.imposterId = imposterId;
 
                 // Select random question pair
-                const questionIndex = Math.floor(Math.random() * questionBank.length);
-                const selectedQuestion = questionBank[questionIndex];
+                if (!selectedQuestion) {
+                    const questionIndex = Math.floor(Math.random() * questionBank.length);
+                    selectedQuestion = questionBank[questionIndex];
+                }
 
                 io.to(lobbyCode).emit('game-started', {
                     gameType,
@@ -329,8 +348,11 @@ app.prepare().then(() => {
                 });
             } else if (gameType === 'most-likely') {
                 lobby.gameData.status = 'voting'; // Skip question phase
-                const questionIndex = Math.floor(Math.random() * mostLikelyQuestions.length);
-                const selectedQuestion = mostLikelyQuestions[questionIndex];
+
+                if (!selectedQuestion) {
+                    const questionIndex = Math.floor(Math.random() * mostLikelyQuestions.length);
+                    selectedQuestion = mostLikelyQuestions[questionIndex];
+                }
 
                 io.to(lobbyCode).emit('game-started', {
                     gameType,

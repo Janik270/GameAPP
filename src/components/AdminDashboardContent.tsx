@@ -2,17 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useSocket } from "@/hooks/useSocket";
-import { Users, Play, LogOut, Copy, Check, QrCode } from "lucide-react";
+import { Users, Play, LogOut, Copy, Check, QrCode, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { QRCodeCanvas } from "qrcode.react";
+import { useRouter } from "next/navigation";
 
 export default function AdminDashboardContent() {
     const { socket, connected } = useSocket();
+    const router = useRouter();
     const [lobbyCode, setLobbyCode] = useState<string | null>(null);
     const [players, setPlayers] = useState<{ id: string, name: string }[]>([]);
     const [gameData, setGameData] = useState<any>(null);
     const [gameType, setGameType] = useState<string>("who-is-lying");
+    const [customGameId, setCustomGameId] = useState<string | null>(null);
+    const [customGames, setCustomGames] = useState<any[]>([]);
+
     const [copied, setCopied] = useState(false);
     const [isStarting, setIsStarting] = useState(false);
     const [baseUrl, setBaseUrl] = useState("");
@@ -21,7 +26,27 @@ export default function AdminDashboardContent() {
 
     useEffect(() => {
         setBaseUrl(window.location.origin);
+        fetchCustomGames();
     }, []);
+
+    const fetchCustomGames = async () => {
+        try {
+            const res = await fetch('/api/games');
+            if (res.ok) {
+                const data = await res.json();
+                setCustomGames(data);
+            } else if (res.status === 401) {
+                router.push('/admin/login');
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleLogout = async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        router.push('/admin/login');
+    };
 
     useEffect(() => {
         if (socket && !lobbyCode) {
@@ -30,7 +55,6 @@ export default function AdminDashboardContent() {
 
         if (socket) {
             socket.on("lobby-created", ({ lobbyCode, networkInfo }) => {
-                console.log("Dashboard: Lobby created", lobbyCode);
                 setLobbyCode(lobbyCode);
                 if (networkInfo) setNetworkInfo(networkInfo);
             });
@@ -64,7 +88,7 @@ export default function AdminDashboardContent() {
     const startGame = () => {
         if (socket && lobbyCode && !isStarting) {
             setIsStarting(true);
-            socket.emit("start-game", { lobbyCode, gameType, maxRounds });
+            socket.emit("start-game", { lobbyCode, gameType, maxRounds, customGameId });
         }
     };
 
@@ -72,6 +96,11 @@ export default function AdminDashboardContent() {
         if (socket && lobbyCode) {
             socket.emit("next-round", { lobbyCode });
         }
+    };
+
+    const handleSelectGame = (type: string, id: string | null = null) => {
+        setGameType(type);
+        setCustomGameId(id);
     };
 
     return (
@@ -85,10 +114,10 @@ export default function AdminDashboardContent() {
                     <h1 className="text-2xl font-black text-white uppercase tracking-tight">Host Dashboard</h1>
                 </div>
 
-                <Link href="/" className="flex items-center gap-2 text-white/50 hover:text-white transition-colors">
+                <button onClick={handleLogout} className="flex items-center gap-2 text-white/50 hover:text-white transition-colors">
                     <LogOut size={20} />
-                    <span className="font-bold" translate="no">Sitzung beenden</span>
-                </Link>
+                    <span className="font-bold">Sitzung beenden</span>
+                </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
@@ -177,33 +206,56 @@ export default function AdminDashboardContent() {
                     </div>
 
                     <div className="kahoot-card">
-                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <Play size={20} className="text-green-400" />
-                            Spiel-Einstellungen
-                        </h3>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <Play size={20} className="text-green-400" />
+                                Spiel-Einstellungen
+                            </h3>
+                            <Link href="/admin/games/create" className="p-1.5 bg-indigo-500/20 hover:bg-indigo-500/40 rounded-lg text-indigo-300 transition-colors">
+                                <Plus size={16} />
+                            </Link>
+                        </div>
+
                         <div className="space-y-4">
-                            <div className="grid grid-cols-1 gap-2">
+                            <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                {/* Standard Games */}
                                 <button
-                                    onClick={() => setGameType("who-is-lying")}
-                                    className={`p-4 rounded-xl border text-left transition-all ${gameType === 'who-is-lying' ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                                    onClick={() => handleSelectGame("who-is-lying")}
+                                    className={`p-4 rounded-xl border text-left transition-all ${gameType === 'who-is-lying' && !customGameId ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
                                 >
                                     <p className="font-bold text-white">Wer ist der Imposter?</p>
-                                    <p className="text-xs text-white/40 mt-1">Finde heraus, wer lügt.</p>
+                                    <p className="text-[10px] text-white/40 mt-1 uppercase">Standard</p>
                                 </button>
                                 <button
-                                    onClick={() => setGameType("most-likely")}
-                                    className={`p-4 rounded-xl border text-left transition-all ${gameType === 'most-likely' ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                                    onClick={() => handleSelectGame("most-likely")}
+                                    className={`p-4 rounded-xl border text-left transition-all ${gameType === 'most-likely' && !customGameId ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
                                 >
                                     <p className="font-bold text-white">Wer würde am ehesten...</p>
-                                    <p className="text-xs text-white/40 mt-1">Stimme über eure Freunde ab.</p>
+                                    <p className="text-[10px] text-white/40 mt-1 uppercase">Standard</p>
                                 </button>
                                 <button
-                                    onClick={() => setGameType("finance-duel")}
-                                    className={`p-4 rounded-xl border text-left transition-all ${gameType === 'finance-duel' ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                                    onClick={() => handleSelectGame("finance-duel")}
+                                    className={`p-4 rounded-xl border text-left transition-all ${gameType === 'finance-duel' && !customGameId ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
                                 >
                                     <p className="font-bold text-white">💸 Finanz-Duell</p>
-                                    <p className="text-xs text-white/40 mt-1">Handle mit Bitcoin & Aktien.</p>
+                                    <p className="text-[10px] text-white/40 mt-1 uppercase">Standard</p>
                                 </button>
+
+                                {/* Custom Games */}
+                                {customGames.length > 0 && <div className="h-px bg-white/10 my-2" />}
+
+                                {customGames.map(game => (
+                                    <button
+                                        key={game.id}
+                                        onClick={() => handleSelectGame(game.gameType, game.id)}
+                                        className={`p-4 rounded-xl border text-left transition-all ${customGameId === game.id ? 'bg-indigo-500/20 border-indigo-500' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                                    >
+                                        <p className="font-bold text-white">{game.title}</p>
+                                        <p className="text-[10px] text-indigo-400 mt-1 uppercase">
+                                            Eigenschaften: {game.gameType}
+                                        </p>
+                                    </button>
+                                ))}
                             </div>
 
                             <div className="space-y-2 pt-2">
@@ -225,8 +277,8 @@ export default function AdminDashboardContent() {
                                 onClick={startGame}
                                 disabled={(gameType === 'finance-duel' ? players.length < 2 : players.length < 3) || isStarting}
                                 className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${(gameType === 'finance-duel' ? players.length >= 2 : players.length >= 3) && !isStarting
-                                        ? "bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/40"
-                                        : "bg-white/5 text-white/20 cursor-not-allowed grayscale"
+                                    ? "bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/40"
+                                    : "bg-white/5 text-white/20 cursor-not-allowed grayscale"
                                     }`}
                             >
                                 {isStarting ? (
