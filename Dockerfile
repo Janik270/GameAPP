@@ -3,11 +3,14 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install dependencies
+RUN apk add --no-cache openssl
 COPY package*.json ./
+COPY prisma ./prisma/
 RUN npm install
 
 # Copy source and build
 COPY . .
+RUN npx prisma generate
 RUN npm run build
 
 # Runtime stage
