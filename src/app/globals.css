@@ -90,3 +90,40 @@ body {
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
 }
+
+/* Light Mode Overrides for Tailwind Utility Classes */
+html.light {
+  background-image: none;
+  background-color: var(--background);
+}
+
+html.light .text-white { color: #333333 !important; }
+html.light .bg-white { background-color: #333333 !important; }
+html.light .border-white { border-color: #333333 !important; }
+
+/* Opacity overrides for white */
+html.light .bg-white\/5 { background-color: rgba(0,0,0,0.05) !important; }
+html.light .bg-white\/10 { background-color: rgba(0,0,0,0.1) !important; }
+html.light .bg-white\/20 { background-color: rgba(0,0,0,0.2) !important; }
+html.light .border-white\/10 { border-color: rgba(0,0,0,0.1) !important; }
+html.light .border-white\/20 { border-color: rgba(0,0,0,0.2) !important; }
+html.light .border-white\/30 { border-color: rgba(0,0,0,0.3) !important; }
+html.light .border-white\/40 { border-color: rgba(0,0,0,0.4) !important; }
+html.light .text-white\/20 { color: rgba(0,0,0,0.4) !important; }
+html.light .text-white\/30 { color: rgba(0,0,0,0.5) !important; }
+html.light .text-white\/40 { color: rgba(0,0,0,0.6) !important; }
+html.light .text-white\/50 { color: rgba(0,0,0,0.5) !important; }
+html.light .text-white\/60 { color: rgba(0,0,0,0.6) !important; }
+html.light .text-white\/70 { color: rgba(0,0,0,0.7) !important; }
+html.light .text-white\/80 { color: rgba(0,0,0,0.8) !important; }
+html.light .ring-white\/10 { --tw-ring-color: rgba(0,0,0,0.1) !important; }
+html.light .placeholder-white\/20::placeholder { color: rgba(0,0,0,0.4) !important; }
+html.light .placeholder-white\/50::placeholder { color: rgba(0,0,0,0.6) !important; }
+
+/* Overrides for black opacity backgrounds (used for tags/IPs) */
+html.light .bg-black\/40 { background-color: rgba(255,255,255,0.7) !important; }
+html.light .bg-black\/60 { background-color: rgba(255,255,255,0.9) !important; }
+
+/* Fix specific gradient text */
+html.light .from-white { --tw-gradient-from: #333333 var(--tw-gradient-from-position) !important; }
+html.light .to-white\/20 { --tw-gradient-to: rgba(0,0,0,0.4) var(--tw-gradient-to-position) !important; }

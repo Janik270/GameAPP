@@ -23,7 +23,7 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center p-6 relative overflow-hidden">
       <Link
         href="/admin/login"
-        className="absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-white/70 hover:text-white font-medium"
+        className="absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-lg bg-foreground/10 hover:bg-foreground/20 transition-all text-foreground/70 hover:text-foreground font-medium"
       >
         <LogIn size={20} />
         <span>Admin Login</span>
@@ -36,8 +36,8 @@ export default function Home() {
         className="w-full max-w-md kahoot-card"
       >
         <div className="flex justify-center mb-6">
-          <div className="p-4 rounded-2xl bg-white/10 shadow-inner">
-            <Gamepad2 size={48} className="text-white" />
+          <div className="p-4 rounded-2xl bg-foreground/10 shadow-inner">
+            <Gamepad2 size={48} className="text-foreground" />
           </div>
         </div>
 
@@ -45,7 +45,7 @@ export default function Home() {
 
         <form onSubmit={handleJoin} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-xs font-bold text-white/50 uppercase ml-1">Spiel-PIN</label>
+            <label className="text-xs font-bold text-foreground/50 uppercase ml-1">Spiel-PIN</label>
             <input
               type="text"
               placeholder="000000"
@@ -58,7 +58,7 @@ export default function Home() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-white/50 uppercase ml-1">Spitzname</label>
+            <label className="text-xs font-bold text-foreground/50 uppercase ml-1">Spitzname</label>
             <input
               type="text"
               placeholder="Dein Name"
@@ -75,9 +75,10 @@ export default function Home() {
         </form>
       </motion.div>
 
-      <div className="mt-12 text-white/30 text-sm font-medium">
+      <div className="mt-12 text-foreground/30 text-sm font-medium">
         Von Janik270
       </div>
     </main >
   );
 }
+

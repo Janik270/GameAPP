@@ -10,3 +10,4 @@ const AdminDashboardContent = dynamic(
 export default function AdminDashboardPage() {
     return <AdminDashboardContent />;
 }
+

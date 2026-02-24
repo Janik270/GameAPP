@@ -55,7 +55,7 @@ export default function AdminRegister() {
         <main className="flex min-h-screen flex-col items-center justify-center p-6 relative overflow-hidden">
             <Link
                 href="/admin/login"
-                className="absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-white/70 hover:text-white font-medium"
+                className="absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-lg bg-foreground/10 hover:bg-foreground/20 transition-all text-foreground/70 hover:text-foreground font-medium"
             >
                 <ArrowLeft size={20} />
                 <span>Zurück</span>
@@ -73,8 +73,8 @@ export default function AdminRegister() {
                     </div>
                 </div>
 
-                <h1 className="text-3xl font-black text-center text-white mb-2 uppercase tracking-tighter">Hoster Account</h1>
-                <p className="text-white/50 text-center mb-8 text-sm">Neuen Account erstellen</p>
+                <h1 className="text-3xl font-black text-center text-foreground mb-2 uppercase tracking-tighter">Hoster Account</h1>
+                <p className="text-foreground/50 text-center mb-8 text-sm">Neuen Account erstellen</p>
 
                 {error && (
                     <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-300 text-sm font-medium text-center">
@@ -87,7 +87,7 @@ export default function AdminRegister() {
                         <input
                             type="text"
                             placeholder="Benutzername"
-                            className="kahoot-input text-center placeholder:text-white/20"
+                            className="kahoot-input text-center placeholder:text-foreground/20"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
@@ -98,7 +98,7 @@ export default function AdminRegister() {
                         <input
                             type="password"
                             placeholder="Passwort"
-                            className="kahoot-input text-center placeholder:text-white/20"
+                            className="kahoot-input text-center placeholder:text-foreground/20"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -114,7 +114,7 @@ export default function AdminRegister() {
                     </button>
 
                     <div className="text-center mt-4">
-                        <Link href="/admin/login" className="text-xs text-white/40 hover:text-white transition-colors">
+                        <Link href="/admin/login" className="text-xs text-foreground/40 hover:text-foreground transition-colors">
                             Bereits einen Account? Hier einloggen.
                         </Link>
                     </div>
@@ -123,3 +123,4 @@ export default function AdminRegister() {
         </main>
     );
 }
+
